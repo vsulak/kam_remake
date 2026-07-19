@@ -369,45 +369,69 @@ end;
 
 procedure TKMGameSettings.LoadFromXML;
 var
+  nGameSettings,
+  nGFX,
+  nSFX,
+  nMusic,
+  nVideo,
+  nGameCommon,
+    nGameAutosave,
+    nGameSavePoints,
+    nGamePlayersColor,
+    nUI,
+    nGameSpeed,
+    nGameWareDistribution,
+    nGameMisc,
+  nGameTweaks,
+  nCampaign,
+  nReplay,
+  nMapEd,
+  nMultiplayer,
+  nMenu,
+    nMenuSP,
+    nMenuReplay,
+    nMenuMapEd,
+  nMisc,
+  nDebug: TKMXmlNode;
   tempCard: Int64;
 begin
   if Self = nil then Exit;
   inherited;
 
-  var nGameSettings := Root.AddOrFindChild('Game');
+  nGameSettings := Root.AddOrFindChild('Game');
 
   // Game GFX
-  var nGFX := nGameSettings.AddOrFindChild('GFX');
+  nGFX := nGameSettings.AddOrFindChild('GFX');
     GFX.Brightness     := nGFX.Attributes['Brightness'].AsInteger(1);
     GFX.AlphaShadows   := nGFX.Attributes['AlphaShadows'].AsBoolean(True);
     GFX.LoadFullFonts  := nGFX.Attributes['LoadFullFonts'].AsBoolean(False);
 
   // SFX
-  var nSFX := nGameSettings.AddOrFindChild('SFX');
+  nSFX := nGameSettings.AddOrFindChild('SFX');
     SFX.SoundFXVolume  := nSFX.Attributes['Volume'].AsFloat(0.5);
 
   // Music
-  var nMusic := nGameSettings.AddOrFindChild('Music');
+  nMusic := nGameSettings.AddOrFindChild('Music');
     SFX.MusicEnabled := nMusic.Attributes['Enabled'].AsBoolean(True);
     SFX.MusicVolume  := nMusic.Attributes['Volume'].AsFloat(0.5);
     SFX.ShuffleOn    := nMusic.Attributes['Shuffle'].AsBoolean(False);
 
   // Video
-  var nVideo := nGameSettings.AddOrFindChild('Video');
+  nVideo := nGameSettings.AddOrFindChild('Video');
     Video.Enabled      := nVideo.Attributes['Enabled'].AsBoolean(False); //Disabled by default
     Video.VideoStretch := nVideo.Attributes['Stretch'].AsBoolean(True);
     Video.PlayOnStartup := nVideo.Attributes['Startup'].AsBoolean(True);
     Video.VideoVolume  := nVideo.Attributes['Volume'].AsFloat(1);
 
   // GameCommon
-  var nGameCommon := nGameSettings.AddOrFindChild('GameCommon');
+  nGameCommon := nGameSettings.AddOrFindChild('GameCommon');
     fLocale := AnsiString(nGameCommon.Attributes['Locale'].AsString(UnicodeString(DEFAULT_LOCALE)));
     // UI
-    var nUI := nGameCommon.AddOrFindChild('UI');
+    nUI := nGameCommon.AddOrFindChild('UI');
       fDefaultZoom    := nUI.Attributes['DefaultZoom'].AsFloat(1);
       fZoomBehaviour  := TKMZoomBehaviour(nUI.Attributes['ZoomBehaviour'].AsInteger(Ord(zbFull))); // Default zoom value is zbFull
     // Speed
-    var nGameSpeed := nGameCommon.AddOrFindChild('Speed');
+    nGameSpeed := nGameCommon.AddOrFindChild('Speed');
       fSpeedMedium    := nGameSpeed.Attributes['Medium'].AsFloat(3);
       fSpeedFast      := nGameSpeed.Attributes['Fast'].AsFloat(6);
       fSpeedVeryFast  := nGameSpeed.Attributes['VeryFast'].AsFloat(10);
@@ -415,20 +439,20 @@ begin
       fScrollSpeed    := nGameSpeed.Attributes['ScrollSpeed'].AsFloat(5);
 
     // Autosave
-    var nGameAutosave := nGameCommon.AddOrFindChild('Autosave');
+    nGameAutosave := nGameCommon.AddOrFindChild('Autosave');
       fAutosave           := nGameAutosave.Attributes['Enabled'].AsBoolean(True);
       fAutosaveAtGameEnd  := nGameAutosave.Attributes['OnGameEnd'].AsBoolean(False);
       AutosaveFrequency   := nGameAutosave.Attributes['Frequency'].AsInteger(AUTOSAVE_FREQUENCY_DEFAULT); // With setter
       AutosaveCount       := nGameAutosave.Attributes['Count'].AsInteger(AUTOSAVE_COUNT_DEF); // With setter
 
     // SavePoints
-    var nGameSavePoints := nGameCommon.AddOrFindChild('SavePoints');
+    nGameSavePoints := nGameCommon.AddOrFindChild('SavePoints');
       fSaveCheckpoints      := nGameSavePoints.Attributes['Enabled'].AsBoolean(True);
       SaveCheckpointsFreq   := nGameSavePoints.Attributes['Frequency'].AsInteger(GAME_SAVE_CHECKPOINT_FREQ_DEF); // With setter
       SaveCheckpointsLimit  := nGameSavePoints.Attributes['Limit'].AsInteger(GAME_SAVE_CHECKPOINT_CNT_LIMIT_DEF); // With setter
 
     // PlayersColor
-    var nGamePlayersColor := nGameCommon.AddOrFindChild('PlayersColor');
+    nGamePlayersColor := nGameCommon.AddOrFindChild('PlayersColor');
       fPlayersColorMode := TKMPlayerColorMode(nGamePlayersColor.Attributes['Mode'].AsInteger(Byte(pcmDefault))); //Show players colors by default
       //Load minimap colors as hex strings 6-hex digits width
       if TryStrToInt64('$' + nGamePlayersColor.Attributes['Self'].AsString(IntToHex(Integer(clPlayerSelf and $FFFFFF), 6)), tempCard) then
@@ -447,12 +471,12 @@ begin
         fPlayerColorEnemy := clPlayerEnemy;
 
     // Ware distribution
-    var nGameWareDistribution := nGameCommon.AddOrFindChild('WareDistribution');
+    nGameWareDistribution := nGameCommon.AddOrFindChild('WareDistribution');
       fWareDistribution.LoadFromStr(nGameWareDistribution.Attributes['Value'].AsString(''));
       fSaveWareDistribution := nGameWareDistribution.Attributes['SavedBetweenGames'].AsBoolean(False); // Disabled by default
 
     // Misc
-    var nGameMisc := nGameCommon.AddOrFindChild('Misc');
+    nGameMisc := nGameCommon.AddOrFindChild('Misc');
       fSpecShowBeacons := nGameMisc.Attributes['SpecShowBeacons'].AsBoolean(False);
       fShowGameTime    := nGameMisc.Attributes['ShowGameTime'].AsBoolean(False);
       fShowGameSpeed   := nGameMisc.Attributes['ShowGameSpeed'].AsBoolean(False);
@@ -463,29 +487,29 @@ begin
         fLastDayGamePlayed  := DATE_TIME_ZERO;
 
     // Tweaks
-    var nGameTweaks := nGameCommon.AddOrFindChild('Tweaks');
+    nGameTweaks := nGameCommon.AddOrFindChild('Tweaks');
       GFX.AllowSnowHouses         := nGameTweaks.Attributes['AllowSnowHouses'].AsBoolean(True);
       GFX.InterpolatedRender      := nGameTweaks.Attributes['InterpolatedRender'].AsBoolean(False);
       GFX.InterpolatedAnimations  := nGameTweaks.Attributes['InterpolatedAnimations'].AsBoolean(False);
 
   // Campaign
-  var nCampaign := nGameSettings.AddOrFindChild('Campaign');
+  nCampaign := nGameSettings.AddOrFindChild('Campaign');
     fCampaignLastDifficulty := TKMMissionDifficulty(nCampaign.Attributes['CampaignLastDifficulty'].AsInteger(Byte(mdNormal))); //Normal as default
 
   // Replay
-  var nReplay := nGameSettings.AddOrFindChild('Replay');
+  nReplay := nGameSettings.AddOrFindChild('Replay');
     fReplayAutopause          := nReplay.Attributes['Autopause'].AsBoolean(False);
     fReplayShowBeacons        := nReplay.Attributes['ShowBeacons'].AsBoolean(False);
     fReplaySavepoint          := nReplay.Attributes['Savepoint'].AsBoolean(True);
     ReplaySavepointFrequency  := nReplay.Attributes['SavepointFrequency'].AsInteger(REPLAY_SAVEPOINT_FREQUENCY_DEF); // With setter
 
   // MapEd
-  var nMapEd := nGameSettings.AddOrFindChild('MapEd');
+  nMapEd := nGameSettings.AddOrFindChild('MapEd');
     MapEdHistoryDepth     := nMapEd.Attributes['HistoryDepth'].AsInteger(MAPED_HISTORY_DEPTH_DEF); // With setter
     MapEdMaxTerrainHeight := nMapEd.Attributes['MaxTerrainHeight'].AsInteger(HEIGHT_MAX); // With setter;
 
   // Multiplayer
-  var nMultiplayer := nGameSettings.AddOrFindChild('Multiplayer');
+  nMultiplayer := nGameSettings.AddOrFindChild('Multiplayer');
     fMultiplayerName  := AnsiString(nMultiplayer.Attributes['Name'].AsString('NoName'));
     fLastIP           := nMultiplayer.Attributes['LastIP'].AsString('127.0.0.1');
     fLastPort         := nMultiplayer.Attributes['LastPort'].AsString('56789');
@@ -494,17 +518,17 @@ begin
     fFlashOnMessage   := nMultiplayer.Attributes['FlashOnMessage'].AsBoolean(True);
 
   // Misc
-  var nMisc := nGameSettings.AddOrFindChild('Misc');
+  nMisc := nGameSettings.AddOrFindChild('Misc');
     fAsyncGameResLoader := nMisc.Attributes['AsyncGameResLoader'].AsBoolean(True);
 
   // Menu
-  var nMenu := nGameSettings.AddOrFindChild('Menu');
+  nMenu := nGameSettings.AddOrFindChild('Menu');
     fMenu_FavouriteMapsStr   := nMenu.Attributes['FavouriteMaps'].AsString('');
     fFavouriteMaps.LoadFromString(fMenu_FavouriteMapsStr);
     fMenu_LobbyMapType      := nMenu.Attributes['LobbyMapType'].AsInteger(0);
     fMenu_CampaignName      := nMenu.Attributes['CampaignName'].AsString('');
 
-    var nMenuSP := nMenu.AddOrFindChild('Singleplayer');
+    nMenuSP := nMenu.AddOrFindChild('Singleplayer');
       fMenu_MapSPType         := nMenuSP.Attributes['Type'].AsInteger(0);
       fMenu_SPScenarioMapCRC  := StrToInt64(nMenuSP.Attributes['ScenarioMapCRC'].AsString('0'));
       fMenu_SPMissionMapCRC   := StrToInt64(nMenuSP.Attributes['MissionMapCRC'].AsString('0'));
@@ -512,12 +536,12 @@ begin
       fMenu_SPSpecialMapCRC   := StrToInt64(nMenuSP.Attributes['SpecialMapCRC'].AsString('0'));
       fMenu_SPSaveFileName    := nMenuSP.Attributes['SaveFileName'].AsString('');
 
-    var nMenuReplay := nMenu.AddOrFindChild('Replay');
+    nMenuReplay := nMenu.AddOrFindChild('Replay');
       fMenu_ReplaysType       := nMenuReplay.Attributes['Type'].AsInteger(0);
       fMenu_ReplaySPSaveName  := nMenuReplay.Attributes['SPSaveName'].AsString('');
       fMenu_ReplayMPSaveName  := nMenuReplay.Attributes['MPSaveName'].AsString('');
 
-    var nMenuMapEd := nMenu.AddOrFindChild('MapEd');
+    nMenuMapEd := nMenu.AddOrFindChild('MapEd');
       fMenu_MapEdMapType      := nMenuMapEd.Attributes['MapType'].AsInteger(0);
       fMenu_MapEdNewMapX      := nMenuMapEd.Attributes['NewMapX'].AsInteger(128);
       fMenu_MapEdNewMapY      := nMenuMapEd.Attributes['NewMapY'].AsInteger(128);
@@ -527,7 +551,7 @@ begin
       fMenu_MapEdDLMapCRC     := StrToInt64(nMenuMapEd.Attributes['DLMapCRC'].AsString('0'));
 
   // Debug
-  var nDebug := nGameSettings.AddOrFindChild('Debug');
+  nDebug := nGameSettings.AddOrFindChild('Debug');
   if DBG_SAVE_RANDOM_CHECKS then
     fDebug_SaveRandomChecks := nDebug.Attributes['SaveRandomChecks'].AsBoolean(True);
 
@@ -543,13 +567,38 @@ end;
 
 //Don't rewrite the file for each individual change, do it in one batch for simplicity
 procedure TKMGameSettings.SaveToXML;
+var
+  nGameSettings,
+  nGFX,
+  nSFX,
+  nMusic,
+  nVideo,
+  nGameCommon,
+    nGameAutosave,
+    nGameSavePoints,
+    nGamePlayersColor,
+    nUI,
+    nGameSpeed,
+    nGameWareDistribution,
+    nGameMisc,
+  nGameTweaks,
+  nCampaign,
+  nReplay,
+  nMapEd,
+  nMultiplayer,
+  nMenu,
+    nMenuSP,
+    nMenuReplay,
+    nMenuMapEd,
+  nMisc,
+  nDebug: TKMXmlNode;
 begin
   if Self = nil then Exit;
   if BLOCK_FILE_WRITE then Exit;
 
   inherited;
 
-  var nGameSettings := Root.AddOrFindChild('Game');
+  nGameSettings := Root.AddOrFindChild('Game');
   // Clear old data before filling in
   {$IFDEF WDC}
   //todo -cPractical: do proper check on FPC
@@ -557,38 +606,38 @@ begin
   {$ENDIF}
 
   // Game GFX
-  var nGFX := nGameSettings.AddOrFindChild('GFX');
+  nGFX := nGameSettings.AddOrFindChild('GFX');
     nGFX.Attributes['Brightness']     := GFX.Brightness;
     nGFX.Attributes['AlphaShadows']   := GFX.AlphaShadows;
     nGFX.Attributes['LoadFullFonts']  := GFX.LoadFullFonts;
 
   // SFX
-  var nSFX := nGameSettings.AddOrFindChild('SFX');
+  nSFX := nGameSettings.AddOrFindChild('SFX');
     nSFX.Attributes['Volume'] := SFX.SoundFXVolume;
 
   // Music
-  var nMusic := nGameSettings.AddOrFindChild('Music');
+  nMusic := nGameSettings.AddOrFindChild('Music');
     nMusic.Attributes['Enabled']  := SFX.MusicEnabled; // Reversed value
     nMusic.Attributes['Volume']   := SFX.MusicVolume;
     nMusic.Attributes['Shuffle']  := SFX.ShuffleOn;
 
   // Video
-  var nVideo := nGameSettings.AddOrFindChild('Video');
+  nVideo := nGameSettings.AddOrFindChild('Video');
     nVideo.Attributes['Enabled']  := Video.Enabled;
     nVideo.Attributes['Stretch']  := Video.VideoStretch;
     nVideo.Attributes['Startup']  := Video.PlayOnStartup;
     nVideo.Attributes['Volume']   := Video.VideoVolume;
 
   // GameCommon
-  var nGameCommon := nGameSettings.AddOrFindChild('GameCommon');
+  nGameCommon := nGameSettings.AddOrFindChild('GameCommon');
     nGameCommon.Attributes['Locale'] := UnicodeString(fLocale);
     // UI
-    var nUI := nGameCommon.AddOrFindChild('UI');
+    nUI := nGameCommon.AddOrFindChild('UI');
       nUI.Attributes['DefaultZoom']         := fDefaultZoom;
       nUI.Attributes['ZoomBehaviour']       := Integer(fZoomBehaviour);
 
     // Speed
-    var nGameSpeed := nGameCommon.AddOrFindChild('Speed');
+    nGameSpeed := nGameCommon.AddOrFindChild('Speed');
       nGameSpeed.Attributes['Medium']       := fSpeedMedium;
       nGameSpeed.Attributes['Fast']         := fSpeedFast;
       nGameSpeed.Attributes['VeryFast']     := fSpeedVeryFast;
@@ -596,32 +645,32 @@ begin
       nGameSpeed.Attributes['ScrollSpeed']  := fScrollSpeed;
 
     // Autosave
-    var nGameAutosave := nGameCommon.AddOrFindChild('Autosave');
+    nGameAutosave := nGameCommon.AddOrFindChild('Autosave');
       nGameAutosave.Attributes['Enabled']   := fAutosave;
       nGameAutosave.Attributes['OnGameEnd'] := fAutosaveAtGameEnd;
       nGameAutosave.Attributes['Frequency'] := fAutosaveFrequency;
       nGameAutosave.Attributes['Count']     := fAutosaveCount;
 
     // SavePoints
-    var nGameSavePoints := nGameCommon.AddOrFindChild('SavePoints');
+    nGameSavePoints := nGameCommon.AddOrFindChild('SavePoints');
       nGameSavePoints.Attributes['Enabled']   := fSaveCheckpoints;
       nGameSavePoints.Attributes['Frequency'] := fSaveCheckpointsFreq;
       nGameSavePoints.Attributes['Limit']     := fSaveCheckpointsLimit;
 
     // PlayersColor
-    var nGamePlayersColor := nGameCommon.AddOrFindChild('PlayersColor');
+    nGamePlayersColor := nGameCommon.AddOrFindChild('PlayersColor');
       nGamePlayersColor.Attributes['Mode']  := Byte(fPlayersColorMode);
       nGamePlayersColor.Attributes['Self']  := IntToHex(fPlayerColorSelf and $FFFFFF, 6);
       nGamePlayersColor.Attributes['Ally']  := IntToHex(fPlayerColorAlly and $FFFFFF, 6);
       nGamePlayersColor.Attributes['Enemy'] := IntToHex(fPlayerColorEnemy and $FFFFFF, 6);
 
     // Ware distribution
-    var nGameWareDistribution := nGameCommon.AddOrFindChild('WareDistribution');
+    nGameWareDistribution := nGameCommon.AddOrFindChild('WareDistribution');
       nGameWareDistribution.Attributes['Value'] := fWareDistribution.PackToStr;
       nGameWareDistribution.Attributes['SavedBetweenGames'] := fSaveWareDistribution;
 
     // Misc
-    var nGameMisc := nGameCommon.AddOrFindChild('Misc');
+    nGameMisc := nGameCommon.AddOrFindChild('Misc');
       nGameMisc.Attributes['SpecShowBeacons']   := fSpecShowBeacons;
       nGameMisc.Attributes['ShowGameTime']      := fShowGameTime;
       nGameMisc.Attributes['ShowGameSpeed']     := fShowGameSpeed;
@@ -629,29 +678,29 @@ begin
       nGameMisc.Attributes['LastDayGamePlayed'] := fLastDayGamePlayed;
 
     // Tweaks
-    var nGameTweaks := nGameCommon.AddOrFindChild('Tweaks');
+    nGameTweaks := nGameCommon.AddOrFindChild('Tweaks');
       nGameTweaks.Attributes['AllowSnowHouses']         := GFX.AllowSnowHouses;
       nGameTweaks.Attributes['InterpolatedRender']      := GFX.InterpolatedRender;
       nGameTweaks.Attributes['InterpolatedAnimations']  := GFX.InterpolatedAnimations;
 
   // Campaign
-  var nCampaign := nGameSettings.AddOrFindChild('Campaign');
+  nCampaign := nGameSettings.AddOrFindChild('Campaign');
     nCampaign.Attributes['CampaignLastDifficulty'] := Byte(fCampaignLastDifficulty);
 
   // Replay
-  var nReplay := nGameSettings.AddOrFindChild('Replay');
+  nReplay := nGameSettings.AddOrFindChild('Replay');
     nReplay.Attributes['Autopause']          := fReplayAutopause;
     nReplay.Attributes['ShowBeacons']        := fReplayShowBeacons;
     nReplay.Attributes['Savepoint']          := fReplaySavepoint;
     nReplay.Attributes['SavepointFrequency'] := fReplaySavepointFrequency;
 
   // MapEd
-  var nMapEd := nGameSettings.AddOrFindChild('MapEd');
+  nMapEd := nGameSettings.AddOrFindChild('MapEd');
     nMapEd.Attributes['HistoryDepth'] := fMapEdHistoryDepth;
     nMapEd.Attributes['MaxTerrainHeight'] := fMapEdMaxTerrainHeight;
 
   // Multiplayer
-  var nMultiplayer := nGameSettings.AddOrFindChild('Multiplayer');
+  nMultiplayer := nGameSettings.AddOrFindChild('Multiplayer');
     nMultiplayer.Attributes['Name']           := UnicodeString(fMultiplayerName);
     nMultiplayer.Attributes['LastIP']         := fLastIP;
     nMultiplayer.Attributes['LastPort']       := fLastPort;
@@ -660,16 +709,16 @@ begin
     nMultiplayer.Attributes['FlashOnMessage'] := fFlashOnMessage;
 
   // Misc
-  var nMisc := nGameSettings.AddOrFindChild('Misc');
+  nMisc := nGameSettings.AddOrFindChild('Misc');
     nMisc.Attributes['AsyncGameResLoader'] := fAsyncGameResLoader;
 
   // Menu
-  var nMenu := nGameSettings.AddOrFindChild('Menu');
+  nMenu := nGameSettings.AddOrFindChild('Menu');
     nMenu.Attributes['FavouriteMaps'] := fMenu_FavouriteMapsStr;
     nMenu.Attributes['CampaignName']  := fMenu_CampaignName;
     nMenu.Attributes['LobbyMapType']  := fMenu_LobbyMapType;
 
-    var nMenuSP := nMenu.AddOrFindChild('Singleplayer');
+    nMenuSP := nMenu.AddOrFindChild('Singleplayer');
       nMenuSP.Attributes['Type'] := fMenu_MapSPType;
       nMenuSP.Attributes['ScenarioMapCRC']  := IntToStr(fMenu_SPScenarioMapCRC);
       nMenuSP.Attributes['MissionMapCRC']   := IntToStr(fMenu_SPMissionMapCRC);
@@ -677,12 +726,12 @@ begin
       nMenuSP.Attributes['SpecialMapCRC']   := IntToStr(fMenu_SPSpecialMapCRC);
       nMenuSP.Attributes['SaveFileName']    := fMenu_SPSaveFileName;
 
-    var nMenuReplay := nMenu.AddOrFindChild('Replay');
+    nMenuReplay := nMenu.AddOrFindChild('Replay');
       nMenuReplay.Attributes['Type']       := fMenu_ReplaysType;
       nMenuReplay.Attributes['SPSaveName'] := fMenu_ReplaySPSaveName;
       nMenuReplay.Attributes['MPSaveName'] := fMenu_ReplayMPSaveName;
 
-    var nMenuMapEd := nMenu.AddOrFindChild('MapEd');
+    nMenuMapEd := nMenu.AddOrFindChild('MapEd');
       nMenuMapEd.Attributes['MapType']    := fMenu_MapEdMapType;
       nMenuMapEd.Attributes['NewMapX']    := fMenu_MapEdNewMapX;
       nMenuMapEd.Attributes['NewMapY']    := fMenu_MapEdNewMapY;
@@ -692,7 +741,7 @@ begin
       nMenuMapEd.Attributes['DLMapCRC']   := IntToStr(fMenu_MapEdDLMapCRC);
 
   // Debug
-  var nDebug := nGameSettings.AddOrFindChild('Debug');
+  nDebug := nGameSettings.AddOrFindChild('Debug');
   if DBG_SAVE_RANDOM_CHECKS then
     nDebug.Attributes['SaveRandomChecks'] := fDebug_SaveRandomChecks;
 
