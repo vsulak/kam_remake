@@ -4,9 +4,6 @@ interface
 uses
   {$IFDEF MSWINDOWS} Windows, {$ENDIF}
   KM_CommonClasses, KM_CommonTypes, KM_Points
-  {$IFDEF Unix}
-  , Mouse
-  {$ENDIF}
   {$IFDEF FPC}
   {$IFDEF Unix}
   , Types
@@ -80,6 +77,7 @@ type
 
 implementation
 uses
+  {$IFDEF Unix} Controls, {$ENDIF} //LCL Mouse global (screen-space cursor pos)
   Math, SysUtils,
   KromUtils, KM_InterfaceTypes,
   KM_Resource, KM_ResTypes,
@@ -406,8 +404,11 @@ begin
     if not Windows.GetCursorPos(mousePos) then Exit;
   {$ENDIF}
   {$IFDEF Unix}
-    MousePos.X := GetMouseX;
-    MousePos.Y := GetMouseY;
+    //Use LCL's Mouse.CursorPos (global screen coords via the widgetset).
+    //The old console Mouse unit's GetMouseX/GetMouseY need a text-mode mouse
+    //driver that is never initialised in a GUI app, so they returned 0,0 and
+    //made the map auto-scroll to the top-left corner every frame.
+    mousePos := Mouse.CursorPos;
   {$ENDIF}
   if not gMain.GetScreenBounds(screenBounds) then Exit;
 

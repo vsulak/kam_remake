@@ -292,8 +292,8 @@ begin
 
   BindTexture(aTexture);
 
-  //GL_ALPHA   (0-0-0-8 bit) - 
-  //GL_RGB5_A1 (5-5-5-1 bit) - 
+  //GL_ALPHA   (0-0-0-8 bit) -
+  //GL_RGB5_A1 (5-5-5-1 bit) -
   //GL_RGBA    (8-8-8-8 bit) - allows fuzzy shadows
   //Figures are before trimming - only ratio matters
   case Mode of
