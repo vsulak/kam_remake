@@ -365,6 +365,7 @@ type
 
     fResExporter: TKMResExporter;
 
+    procedure ExportDone(const aResourceName: String);
     procedure FormKeyDownProc(aKey: Word; aShift: TShiftState; aIsFirst: Boolean);
     procedure FormKeyUpProc(aKey: Word; aShift: TShiftState);
 //    function ConfirmExport: Boolean;
@@ -379,8 +380,8 @@ type
 
     procedure FindObjByUID(aUID: Integer);
     function AllowFindObjByUID: Boolean;
-    {$IFDEF MSWindows}
     function GetWindowParams: TKMWindowParamsRecord;
+    {$IFDEF MSWindows}
     procedure WMSysCommand(var Msg: TWMSysCommand); message WM_SYSCOMMAND;
     procedure WMExitSizeMove(var Msg: TMessage) ; message WM_EXITSIZEMOVE;
     procedure WMAppCommand(var Msg: TMessage); message WM_APPCOMMAND;
@@ -455,8 +456,13 @@ uses
   {$R *.dfm}
 //{$ENDIF}
 
+{$IFNDEF MSWindows}
+const
+  WHEEL_DELTA = 120;
+{$ENDIF}
 
-procedure ExportDone(aResourceName: String);
+
+procedure TFormMain.ExportDone(const aResourceName: String);
 begin
   MessageDlg(Format(gResTexts[TX_RESOURCE_EXPORT_DONE_MSG], [aResourceName]), mtInformation, [mbOK], 0);
 end;
@@ -465,7 +471,9 @@ end;
 //Remove VCL panel and use flicker-free TMyPanel instead
 procedure TFormMain.FormCreate(Sender: TObject);
 begin
+  {$IFDEF MSWindows}
   Application.OnMessage := DoMessage;
+  {$ENDIF}
 
   fStartVideoPlayed := False;
   RenderArea := TKMRenderControl.Create(Self);
@@ -502,10 +510,16 @@ begin
   mainGroup.BringToFront;
   {$ENDIF}
 
+  {$IFDEF WDC}
   chkShowFlatTerrain.Tag := Ord(dcFlatTerrain);
   tbWaterLight.Tag := Ord(dcFlatTerrain);
+  {$ENDIF}
 
+  {$IFDEF WDC}
   fDevSettings := TKMDevSettings.Create(ExeDir, mainGroup, cpGameControls);
+  {$ELSE}
+  fDevSettings := TKMDevSettings.Create(ExeDir, nil, nil);
+  {$ENDIF}
 
   fUpdating := True;
   try
@@ -565,27 +579,37 @@ end;
 
 procedure TFormMain.GameStarted(aGameMode: TKMGameMode);
 begin
+  {$IFDEF WDC}
+  // These are native Windows menu items / debug-panel controls that are not
+  // instantiated on the FPC/Cocoa build (nil there); toggling them would AV.
   SaveEditableMission1.Enabled := aGameMode = gmMapEd;
   Openscriptfile1.Enabled := True;
   Debug_SaveGameWholeMapToImage.Enabled := True;
   btnSaveMapImage.Enabled := True;
   seMaxImageSize.Enabled := True;
+  {$ENDIF}
 end;
 
 
 procedure TFormMain.GameEnded(aGameMode: TKMGameMode);
 begin
+  {$IFDEF WDC}
+  // See GameStarted: Windows-only controls, nil on the FPC/Cocoa build.
   SaveEditableMission1.Enabled := False;
   Openscriptfile1.Enabled := False;
   Debug_SaveGameWholeMapToImage.Enabled := False;
   btnSaveMapImage.Enabled := False;
   seMaxImageSize.Enabled := False;
+  {$ENDIF}
 end;
 
 
 procedure TFormMain.SetExportGameStats(aEnabled: Boolean);
 begin
+  {$IFDEF WDC}
+  // Windows-only menu item, nil on the FPC/Cocoa build.
   ExportGameStats.Enabled := aEnabled;
+  {$ENDIF}
 end;
 
 
@@ -765,11 +789,13 @@ end;
 
 
 procedure TFormMain.mnExportRngChecksClick(Sender: TObject);
+var
+  rngLogger: TKMRandomCheckLogger;
 begin
   {$IFDEF DBG_RNG_SPY}
   if RunOpenDialog(OpenDialog1, '', ExeDir, 'KaM Remake Random checks log (*.rng)|*.rng') then
   begin
-    var rngLogger := TKMRandomCheckLogger.Create;
+    rngLogger := TKMRandomCheckLogger.Create;
     rngLogger.LoadFromPathAndParseToDict(OpenDialog1.FileName);
     rngLogger.SaveAsText(OpenDialog1.FileName + '.log');
     rngLogger.Free;
@@ -779,10 +805,12 @@ end;
 
 
 procedure TFormMain.mnExportRPLClick(Sender: TObject);
+var
+  gip: TKMGameInputProcess;
 begin
   if RunOpenDialog(OpenDialog1, '', ExeDir, 'KaM Remake replay commands (*.rpl)|*.rpl') then
   begin
-    var gip := TKMGameInputProcess.Create(gipReplaying);
+    gip := TKMGameInputProcess.Create(gipReplaying);
     gip.LoadFromFile(OpenDialog1.FileName);
     gip.SaveToFileAsText(OpenDialog1.FileName + '.log');
     gip.Free;
@@ -1117,7 +1145,7 @@ end;
 
 procedure TFormMain.FindObjByUID(aUID: Integer);
 begin
-  if gGameApp.Game.GamePlayInterface = nil then Exit;
+  if (gGameApp = nil) or (gGameApp.Game = nil) or (gGameApp.Game.GamePlayInterface = nil) then Exit;
 
   gGameApp.Game.GamePlayInterface.SelectNHighlightEntityByUID(aUID);
 end;
@@ -1125,7 +1153,7 @@ end;
 
 procedure TFormMain.btFindObjByUIDClick(Sender: TObject);
 begin
-  FindObjByUID(seFindObjByUID.Value);
+  {$IFDEF WDC}FindObjByUID(seFindObjByUID.Value);{$ENDIF}
 end;
 
 
@@ -1265,6 +1293,7 @@ procedure TFormMain.ResetControl(aCtrl: TControl);
 begin
   if SkipReset(aCtrl) then Exit; //Skip reset for some controls
 
+  {$IFDEF WDC}
   if aCtrl is TCheckBox then
     TCheckBox(aCtrl).Checked :=   (aCtrl = chkBevel)
                                or (aCtrl = chkLogNetConnection)
@@ -1304,6 +1333,7 @@ begin
   else
   if (aCtrl is TGroupBox) then
     ResetSubPanel(TGroupBox(aCtrl));
+  {$ENDIF}
 end;
 
 
@@ -1343,26 +1373,8 @@ procedure TFormMain.ControlsReset;
 
   {$IFDEF FPC}
   procedure ResetGroup(aBox: TGroupBox);
-  var
-    I: Integer;
   begin
-    for I := 0 to aBox.ControlCount - 1 do
-    begin
-      if SkipReset(aBox.Controls[I]) then Continue; //Skip reset for some controls
-
-      if aBox.Controls[I] is TCheckBox then
-        TCheckBox(aBox.Controls[I]).Checked :=    (aBox.Controls[I] = chkBevel)
-                                               or (aBox.Controls[I] = chkLogNetConnection)
-      else
-      if aBox.Controls[I] is TTrackBar then
-        TTrackBar(aBox.Controls[I]).Position := 0
-      else
-      if aBox.Controls[I] is TRadioGroup then
-        TRadioGroup(aBox.Controls[I]).ItemIndex := 0
-      else
-      if (aBox.Controls[I] is TGroupBox) then
-        ResetGroup(TGroupBox(aBox.Controls[I]));
-    end;
+    ResetSubPanel(aBox);
   end;
   {$ENDIF}
 
@@ -1401,16 +1413,21 @@ end;
 
 function TFormMain.AllowFindObjByUID: Boolean;
 begin
+  {$IFDEF WDC}
   Result := // Update values only if Debug panel is opened or if we are debugging
         (((fDevSettings.DebugFormState <> fsNone) and not cpDebugInput.Collapsed)
           or {$IFDEF DEBUG} True {$ELSE} False {$ENDIF}) // But its ok if we are in Debug build
         and chkFindObjByUID.Checked     // and checkbox is checked
         and gMain.IsDebugChangeAllowed; // and not in MP
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 
 procedure TFormMain.SetEntitySelected(aEntityUID: Integer; aEntity2UID: Integer);
 begin
+  {$IFDEF WDC}
   if not AllowFindObjByUID then Exit;
 
   seEntityUID.SetValueWithoutChange(aEntityUID);
@@ -1425,6 +1442,7 @@ begin
       aEntity2UID := aEntityUID;
     seFindObjByUID.Value := aEntity2UID; // will trigger OnChange
   end;
+  {$ENDIF}
 end;
 
 
@@ -1450,6 +1468,7 @@ begin
     rgDebugFont.ItemIndex := DEBUG_TEXT_FONT_ID;
     {$ENDIF}
 
+    {$IFDEF WDC}
     if (gGame = nil) or not gMain.IsDebugChangeAllowed then Exit;
 
     tbPassability.Max := Byte(High(TKMTerrainPassability));
@@ -1480,6 +1499,7 @@ begin
     chkShowUnitRadius.  SetCheckedWithoutClick(mlUnitsAttackRadius  in gGameParams.VisibleLayers);
     chkShowDefencePos.  SetCheckedWithoutClick(mlDefencesAll        in gGameParams.VisibleLayers);
     chkShowFlatTerrain. SetCheckedWithoutClick(mlFlatTerrain        in gGameParams.VisibleLayers);
+    {$ENDIF}
   finally
     fUpdating := False;
   end;
@@ -1556,6 +1576,7 @@ var
   allowDebugChange: Boolean;
 begin
   if fUpdating then Exit;
+  if (gMain = nil) or (gGameApp = nil) then Exit; // Form loading can trigger events before globals are created
 
   //You could possibly cheat in multiplayer by seeing debug render info
   allowDebugChange := gMain.IsDebugChangeAllowed
@@ -1573,14 +1594,16 @@ begin
     SHOW_TERRAIN_KINDS := chkShowTerrainKinds.Checked;
     SHOW_TERRAIN_TILES_GRID := chkTilesGrid.Checked;
     SHOW_UNIT_ROUTES := chkShowRoutes.Checked;
-    SHOW_UNIT_ROUTES_STEPS := chkShowRoutesSteps.Checked;
+    if Assigned(chkShowRoutesSteps) then
+      SHOW_UNIT_ROUTES_STEPS := chkShowRoutesSteps.Checked;
     SHOW_SEL_BUFFER := chkSelectionBuffer.Checked;
     SHOW_GAME_TICK := chkShowGameTick.Checked;
     SHOW_FPS := chkShowFPS.Checked;
     SHOW_UIDs := chkUIDs.Checked;
     SHOW_SELECTED_OBJ_INFO := chkSelectedObjInfo.Checked;
     SHOW_HANDS_INFO := chkHands.Checked;
-    SHOW_VIEWPORT_INFO := chkViewport.Checked;
+    if Assigned(chkViewport) then
+      SHOW_VIEWPORT_INFO := chkViewport.Checked;
 
     {$IFDEF WDC} //one day update .lfm for lazarus...
     DO_DEBUG_TER_RENDER := chkDebugTerrainRender.Checked;
@@ -1644,12 +1667,14 @@ begin
 
     SKIP_RENDER := chkSkipRender.Checked;
     SKIP_SOUND := chkSkipSound.Checked;
-    IGNORE_MOUSE_SCROLLING := chkIgnoreMouseScroll.Checked;
-    SHOW_UNITS_IN_HOUSE := chkShowUnitsInHouse.Checked;
-    DISPLAY_SOUNDS := chkPaintSounds.Checked;
-    SHOW_VIEWPORT_POS := chkViewportPos.Checked;
+    if Assigned(chkIgnoreMouseScroll) then
+      IGNORE_MOUSE_SCROLLING := chkIgnoreMouseScroll.Checked;
+    if Assigned(chkShowUnitsInHouse) then
+      SHOW_UNITS_IN_HOUSE := chkShowUnitsInHouse.Checked;
+    {$IFDEF WDC}DISPLAY_SOUNDS := chkPaintSounds.Checked;{$ENDIF}
+    {$IFDEF WDC}SHOW_VIEWPORT_POS := chkViewportPos.Checked;{$ENDIF}
 
-    gbFindObjByUID.Enabled := chkFindObjByUID.Checked;
+    {$IFDEF WDC}gbFindObjByUID.Enabled := chkFindObjByUID.Checked;{$ENDIF}
 
     if AllowFindObjByUID then
       btFindObjByUIDClick(nil)
@@ -1662,15 +1687,17 @@ begin
   begin
     SHOW_AI_WARE_BALANCE := chkShowBalance.Checked;
     OVERLAY_DEFENCES := chkShowDefences.Checked;
-    OVERLAY_DEFENCES_A := chkShowDefencesAnimate.Checked;
-    OVERLAY_AI_BUILD := chkBuild.Checked;
-    OVERLAY_AI_COMBAT := chkCombat.Checked;
-    OVERLAY_AI_PATHFINDING := chkPathfinding.Checked;
-    OVERLAY_AI_SUPERVISOR := chkSupervisor.Checked;
-    OVERLAY_AI_VEC_FLD_ENEM := chkShowArmyVectorFieldEnemy.Checked;
-    OVERLAY_AI_VEC_FLD_ALLY := chkShowArmyVectorFieldAlly.Checked;
-    OVERLAY_AI_CLUSTERS := chkShowClusters.Checked;
-    OVERLAY_AI_ALLIEDGROUPS := chkShowAlliedGroups.Checked;
+    {$IFDEF WDC}OVERLAY_DEFENCES_A := chkShowDefencesAnimate.Checked;{$ENDIF}
+    if Assigned(chkBuild) then
+      OVERLAY_AI_BUILD := chkBuild.Checked;
+    if Assigned(chkCombat) then
+      OVERLAY_AI_COMBAT := chkCombat.Checked;
+    {$IFDEF WDC}OVERLAY_AI_PATHFINDING := chkPathfinding.Checked;{$ENDIF}
+    {$IFDEF WDC}OVERLAY_AI_SUPERVISOR := chkSupervisor.Checked;{$ENDIF}
+    {$IFDEF WDC}OVERLAY_AI_VEC_FLD_ENEM := chkShowArmyVectorFieldEnemy.Checked;{$ENDIF}
+    {$IFDEF WDC}OVERLAY_AI_VEC_FLD_ALLY := chkShowArmyVectorFieldAlly.Checked;{$ENDIF}
+    {$IFDEF WDC}OVERLAY_AI_CLUSTERS := chkShowClusters.Checked;{$ENDIF}
+    {$IFDEF WDC}OVERLAY_AI_ALLIEDGROUPS := chkShowAlliedGroups.Checked;{$ENDIF}
     OVERLAY_AI_EYE := chkAIEye.Checked;
     OVERLAY_AI_SOIL := chkShowSoil.Checked;
     OVERLAY_AI_FLATAREA := chkShowFlatArea.Checked;
@@ -1678,7 +1705,8 @@ begin
     OVERLAY_AVOID := chkShowAvoid.Checked;
     OVERLAY_OWNERSHIP := chkShowOwnership.Checked;
     OVERLAY_NAVMESH := chkShowNavMesh.Checked;
-    OVERLAY_HIGHLIGHT_POLY := seHighlightNavMesh.Value;
+    if Assigned(seHighlightNavMesh) then
+      OVERLAY_HIGHLIGHT_POLY := seHighlightNavMesh.Value;
 
     OWN_MARGIN := tbOwnMargin.Position;
     tbOwnThresh.Max := OWN_MARGIN;
@@ -1689,10 +1717,11 @@ begin
   SHOW_CONTROLS_OVERLAY := chkUIControlsBounds.Checked;
   SHOW_TEXT_OUTLINES := chkUITextBounds.Checked;
   SHOW_CONTROLS_ID := chkUIControlsID.Checked;
-  SHOW_FOCUSED_CONTROL := chkUIFocusedControl.Checked;
-  SHOW_CONTROL_OVER := chkUIControlOver.Checked;
-  SKIP_RENDER_TEXT := chkSkipRenderText.Checked;
-  DBG_UI_HINT_POS := chkCursorCoordinates.Checked;
+  {$IFDEF WDC}SHOW_FOCUSED_CONTROL := chkUIFocusedControl.Checked;{$ENDIF}
+  {$IFDEF WDC}SHOW_CONTROL_OVER := chkUIControlOver.Checked;{$ENDIF}
+  {$IFDEF WDC}SKIP_RENDER_TEXT := chkSkipRenderText.Checked;{$ENDIF}
+  if Assigned(chkCursorCoordinates) then
+    DBG_UI_HINT_POS := chkCursorCoordinates.Checked;
 
   {$IFDEF WDC} // one day update .lfm for lazarus...
   gGameSettings.GFX.AllowSnowHouses := chkSnowHouses.Checked;
@@ -1717,14 +1746,17 @@ begin
     end;
     HOUSE_BUILDING_STEP := tbBuildingStep.Position / tbBuildingStep.Max;
 
-    WATER_LIGHT_MULTIPLIER := tbWaterLight.Position / 100;
-    lblWaterLight.Caption := 'Water light x' + ReplaceStr(FormatFloat('0.##', WATER_LIGHT_MULTIPLIER), ',', '.');
+    {$IFDEF WDC}WATER_LIGHT_MULTIPLIER := tbWaterLight.Position / 100;{$ENDIF}
+    {$IFDEF WDC}lblWaterLight.Caption := 'Water light x' + ReplaceStr(FormatFloat('0.##', WATER_LIGHT_MULTIPLIER), ',', '.');{$ENDIF}
   end;
 
   //Logs
-  SHOW_LOG_IN_CHAT := chkLogShowInChat.Checked;
-  SHOW_LOG_IN_GUI := chkLogShowInGUI.Checked;
-  UPDATE_LOG_FOR_GUI := chkLogUpdateForGUI.Checked;
+  if Assigned(chkLogShowInChat) then
+    SHOW_LOG_IN_CHAT := chkLogShowInChat.Checked;
+  if Assigned(chkLogShowInGUI) then
+    SHOW_LOG_IN_GUI := chkLogShowInGUI.Checked;
+  if Assigned(chkLogUpdateForGUI) then
+    UPDATE_LOG_FOR_GUI := chkLogUpdateForGUI.Checked;
   LOG_GAME_TICK := chkLogGameTick.Checked;
 
   if allowDebugChange then
@@ -1777,11 +1809,11 @@ begin
   //Misc
   if allowDebugChange then
   begin
-    SHOW_DEBUG_OVERLAY_BEVEL := chkBevel.Checked;
-    DEBUG_TEXT_FONT_ID := rgDebugFont.ItemIndex;
+    {$IFDEF WDC}SHOW_DEBUG_OVERLAY_BEVEL := chkBevel.Checked;{$ENDIF}
+    {$IFDEF WDC}DEBUG_TEXT_FONT_ID := rgDebugFont.ItemIndex;{$ENDIF}
   end;
 
-  if gGameApp.Game <> nil then
+  if (gGameApp <> nil) and (gGameApp.Game <> nil) then
     gGameApp.Game.ActiveInterface.UpdateState(gGameApp.GlobalTickCount);
 
   if    not (Sender is TSpinEdit)
@@ -1816,13 +1848,16 @@ end;
 
 procedure TFormMain.ShowInWindow;
 begin
+  {$IFDEF MSWindows}
   if gMainSettings.WindowParams.NeedResetToDefaults then
     ShowInDefaultWindow
   else
     ShowInCustomWindow;
+  {$ENDIF}
 end;
 
 
+{$IFDEF MSWindows}
 procedure TFormMain.ShowInCustomWindow;
 begin
   BorderStyle  := bsSizeable;
@@ -1864,6 +1899,7 @@ begin
   //Make sure Panel is properly aligned
   RenderArea.Align := alClient;
 end;
+{$ENDIF}
 
 
 //function TFormMain.ConfirmExport: Boolean;
@@ -1914,6 +1950,7 @@ begin
 end;
 
 
+{$IFDEF MSWindows}
 // Return current window params
 function TFormMain.GetWindowParams: TKMWindowParamsRecord;
   // FindTaskBar returns the Task Bar's position, and fills in
@@ -1985,6 +2022,17 @@ begin
                   end;
   end;
 end;
+{$ELSE}
+function TFormMain.GetWindowParams: TKMWindowParamsRecord;
+begin
+  Result := Default(TKMWindowParamsRecord);
+  Result.State := WindowState;
+  Result.Width := ClientWidth;
+  Result.Height := ClientHeight;
+  Result.Left := Left;
+  Result.Top := Top;
+end;
+{$ENDIF}
 
 
 {$IFDEF MSWindows}
@@ -2146,12 +2194,14 @@ end;
 
 
 procedure TFormMain.FormMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
+var
+  wheelHandled: Boolean;
 begin
   // We use WM_MOUSEWHEEL message handler on Windows, since it prevents some bugs from happaning
   // F.e. on Win10 it was reported, that we got event 3 times on single turn of mouse wheel, if use default form event handler
 {$IFNDEF MSWINDOWS}
-  var handled := False;
-  gGameApp.MouseWheel(Shift, GetMouseWheelStepsCnt(WheelDelta), RenderArea.ScreenToClient(MousePos).X, RenderArea.ScreenToClient(MousePos).Y, handled);
+  wheelHandled := False;
+  gGameApp.MouseWheel(Shift, GetMouseWheelStepsCnt(WheelDelta), RenderArea.ScreenToClient(MousePos).X, RenderArea.ScreenToClient(MousePos).Y, wheelHandled);
 {$ENDIF}
 end;
 

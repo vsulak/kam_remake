@@ -392,8 +392,8 @@ begin
     txt2 := Format('%12s %9.3fs %7dms %6d    %s', [
                     FormatDateTime('hh:nn:ss.zzz', Now),
                     TimeSince(fFirstTick) / 1000,
-                    TimeSince(fPreviousTick),
-                    TThread.CurrentThread.ThreadID,
+                    Integer(TimeSince(fPreviousTick)),
+                    {$IFDEF FPC}Integer(TThread.CurrentThread.ThreadID){$ELSE}TThread.CurrentThread.ThreadID{$ENDIF},
                     aText]);
     {$IFDEF WDC}
     AppendText(txt + txt2);

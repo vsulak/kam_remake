@@ -235,23 +235,23 @@ uses
   {$IFDEF WDC} KM_NetClientOverbyte in 'src\net\KM_NetClientOverbyte.pas', {$ENDIF}
   {$IFDEF FPC} KM_NetClientLNet in 'src\net\KM_NetClientLNet.pas', {$ENDIF}
   KM_NetFileTransfer in 'src\net\KM_NetFileTransfer.pas',
-  KM_NetPlayersList in 'src\net\KM_NetPlayersList.pas',
+  KM_NetRoom in 'src\net\KM_NetRoom.pas',
   KM_NetServer in 'src\net\KM_NetServer.pas',
   {$IFDEF WDC} KM_NetServerOverbyte in 'src\net\KM_NetServerOverbyte.pas', {$ENDIF}
   {$IFDEF FPC} KM_NetServerLNet in 'src\net\KM_NetServerLNet.pas', {$ENDIF}
   KM_NetUDP in 'src\net\KM_NetUDP.pas',
   {$IFDEF WDC} KM_NetUDPOverbyte in 'src\net\KM_NetUDPOverbyte.pas', {$ENDIF}
   {$IFDEF FPC} KM_NetUDPLNet in 'src\net\KM_NetUDPLNet.pas', {$ENDIF}
-  KM_NetworkClasses in 'src\net\KM_NetworkClasses.pas',
+  KM_NetGameInfo in 'src\net\KM_NetGameInfo.pas',
   KM_Networking in 'src\net\KM_Networking.pas',
-  KM_NetworkTypes in 'src\net\KM_NetworkTypes.pas',
+  KM_NetTypes in 'src\net\KM_NetTypes.pas',
 
   KM_HTTPClient in 'src\net\http\KM_HTTPClient.pas',
   {$IFDEF WDC} KM_HTTPClientOverbyte in 'src\net\http\KM_HTTPClientOverbyte.pas', {$ENDIF}
   {$IFDEF FPC} KM_HTTPClientLNet in 'src\net\http\KM_HTTPClientLNet.pas', {$ENDIF}
 
-  KM_DedicatedServer in 'src\net\other\KM_DedicatedServer.pas',
-  KM_MasterServer in 'src\net\other\KM_MasterServer.pas',
+  KM_NetDedicatedServer in 'src\net\KM_NetDedicatedServer.pas',
+  KM_NetServerLocator in 'src\net\KM_NetServerLocator.pas',
 
   KM_PathFinding in 'src\pathfinding\KM_PathFinding.pas',
   KM_PathFindingAStarOld in 'src\pathfinding\KM_PathFindingAStarOld.pas',
@@ -295,7 +295,7 @@ uses
   KM_ScriptingTypes in 'src\scripting\KM_ScriptingTypes.pas',
   KM_ScriptingUtils in 'src\scripting\KM_ScriptingUtils.pas',
 
-  KM_ServerQuery in 'src\net\KM_ServerQuery.pas',
+  KM_NetServerPoller in 'src\net\KM_NetServerPoller.pas',
 
   KM_RandomMapGenerator in 'src\terrain\KM_RandomMapGenerator.pas',
   KM_RMGUtils in 'src\terrain\KM_RMGUtils.pas',

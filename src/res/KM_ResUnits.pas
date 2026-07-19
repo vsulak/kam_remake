@@ -608,6 +608,7 @@ end;
 
 
 procedure TKMResUnits.ExportCSV(const aPath: UnicodeString);
+{$IFDEF WDC}
 var
   sw: TStreamWriter;
   UT: TKMUnitType;
@@ -658,6 +659,9 @@ begin
         end;
   end;
   closefile(ft);}
+{$ELSE}
+begin
+{$ENDIF}
 end;
 
 

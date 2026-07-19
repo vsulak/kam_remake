@@ -1995,6 +1995,7 @@ var
   requiredMaxRad: Single;
   U: TKMUnit;
   posNext: TKMPoint;
+  posRound: TKMPoint;
   wCount, cCount, initialSize: Integer;
   W, C: TKMUnitArray;
 begin
@@ -2061,7 +2062,7 @@ begin
     if (aMaxRad = 1) and KMStepIsDiag(aLoc, posNext) then
       requiredMaxRad := 1.42; //Use diagonal radius sqrt(2) instead
 
-    var posRound := U.Position;
+    posRound := U.Position;
     if (not aTestDiagWalkable
         or CheckVertex(posRound, posNext))
       and InRange(KMLength(KMPointF(aLoc), U.PositionF), aMinRad, requiredMaxRad) //Unit's exact position must be close enough

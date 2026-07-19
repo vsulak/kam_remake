@@ -113,8 +113,10 @@ uses
   KM_UnitWarrior, KM_Log, KM_Resource, KM_CommonClassesExt,
   KM_CommonExceptions;
 
+{$IFDEF WDC}
 type
   TKMSetByteSet = TSet<TKMByteSet>;
+{$ENDIF}
 
 //INTERACTION CONSTANTS: (may need to be tweaked for optimal performance)
 //TIMEOUT is the time after which each solution things will be checked.
@@ -219,7 +221,7 @@ begin
   begin
     errorStr := Format('Unable to make a route for %s:%d from %s to %s with "%s" TargetWC_Set = %s',
                        [gRes.Units[aUnit.UnitType].GUIName, aUnit.UID, fWalkFrom.ToString, fWalkTo.ToString,
-                        PASSABILITY_GUI_TEXT[fPass], TKMSetByteSet.SetToString(aTargetWalkConnectSet)]);
+                        PASSABILITY_GUI_TEXT[fPass], {$IFDEF WDC}TKMSetByteSet.SetToString(aTargetWalkConnectSet){$ELSE}KMSetToString(aTargetWalkConnectSet, SizeOf(aTargetWalkConnectSet), TypeInfo(Byte)){$ENDIF}]);
     gLog.AddNoTime(errorStr);
     {$IFDEF RUNNER}
     raise Exception.Create(errorStr);

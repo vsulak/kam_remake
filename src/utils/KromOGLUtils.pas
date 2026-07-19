@@ -5,10 +5,19 @@ uses
   dglOpenGL,
   {$IFDEF FPC} GL, LCLIntf, {$ENDIF}
   {$IFDEF MSWindows} Windows {$ENDIF}
-  {$IFDEF Unix} LCLType, glx, x, xlib, xutil {$ENDIF}
+  {$IFDEF Linux} LCLType, glx, x, xlib, xutil {$ENDIF}
+  {$IFDEF DARWIN} LCLType {$ENDIF}
   ;
 
-{$IFDEF Unix}
+{$IFDEF Linux}
+type HGLRC = Integer;
+type PFD_DRAW_TO_WINDOW = Integer;
+type PFD_SUPPORT_OPENGL = Integer;
+type PFD_DOUBLEBUFFER = Integer;
+type PFD_TYPE_RGBA = Integer;
+type PFD_MAIN_PLANE = Integer;
+{$ENDIF}
+{$IFDEF DARWIN}
 type HGLRC = Integer;
 type PFD_DRAW_TO_WINDOW = Integer;
 type PFD_SUPPORT_OPENGL = Integer;

@@ -167,16 +167,20 @@ begin
 
   fUnits := TKMResUnits.Create; // Load units prior to Sprites, as we could use it on SoftenShadows override for png in Sprites folder
   fSprites.LoadMenuResources;
+  gLog.AddTime('LoadMenuResources done');
 
   {$IFNDEF NO_OGL}
+  gLog.AddTime('MakeCursors start');
   gSystem.MakeCursors(fSprites[rxGui]);
+  gLog.AddTime('MakeCursors done');
   gSystem.Cursor := kmcDefault;
   {$ENDIF}
   fCursors.SetRXDataPointer(@fSprites[rxGui].RXData);
 
   gResKeyFuncs := TKMResKeyFuncs.Create;
-
+  gLog.AddTime('LoadLocaleAndFonts start');
   LoadLocaleAndFonts(aLocale, aLoadFullFonts);
+  gLog.AddTime('LoadLocaleAndFonts done');
 
   fTileset := TKMResTileset.Create;
   if not SKIP_RENDER then
@@ -184,17 +188,24 @@ begin
     if fSprites.Sprites[rxTiles].RXData.Count <> TILES_CNT then
       gLog.AddTime('fSprites.Sprites[rxTiles].RXData.Count = ' + IntToStr(fSprites.Sprites[rxTiles].RXData.Count));
 
+    gLog.AddTime('GetAverageSpriteColors start');
     tileColors := fSprites.Sprites[rxTiles].GetAverageSpriteColors(TILES_CNT);
     fTileset.SetTileColors(tileColors);
+    gLog.AddTime('GetAverageSpriteColors done');
   end;
 
+  gLog.AddTime('LoadMapElements start');
   fMapElements := TKMResMapElements.Create;
   fMapElements.LoadFromFile(ExeDir + 'data' + PathDelim + 'defines' + PathDelim + 'mapelem.dat');
+  gLog.AddTime('LoadMapElements done');
 
   fSprites.ClearTemp;
+  gLog.AddTime('ClearTemp done');
 
   fWares := TKMResWares.Create;
+  gLog.AddTime('ResWares created');
   fHouses := TKMResHouses.Create;
+  gLog.AddTime('ResHouses created');
 
   StepRefresh;
   gLog.AddTime('ReadGFX is done');
@@ -209,12 +220,16 @@ begin
   FreeAndNil(gResTexts);
   FreeAndNil(fSounds);
 
+  gLog.AddTime('LoadLocaleResources: creating locales');
   gResLocales := TKMResLocales.Create(ExeDir + 'data' + PathDelim + 'locales.txt', aLocale);
 
+  gLog.AddTime('LoadLocaleResources: loading texts');
   gResTexts := TKMTextLibraryMulti.Create;
   gResTexts.LoadLocale(ExeDir + 'data' + PathDelim + 'text' + PathDelim + 'text.%s.libx', False);
 
+  gLog.AddTime('LoadLocaleResources: creating sounds');
   fSounds := TKMResSounds.Create(gResLocales.UserLocale, gResLocales.FallbackLocale, gResLocales.DefaultLocale);
+  gLog.AddTime('LoadLocaleResources: done');
 end;
 
 
@@ -224,7 +239,9 @@ begin
   LoadLocaleResources(aLocale);
 
   StepCaption('Reading fonts ...');
+  gLog.AddTime('LoadLocaleAndFonts: creating fonts');
   fFonts := TKMResFonts.Create;
+  gLog.AddTime('LoadLocaleAndFonts: loading fonts (full=%s)', [BoolToStr(aLoadFullFonts, True)]);
   if aLoadFullFonts or gResLocales.LocaleByCode(aLocale).NeedsFullFonts then
     fFonts.LoadFonts(fllFull)
   else

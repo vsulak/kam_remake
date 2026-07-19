@@ -2,12 +2,14 @@ unit KM_CommonClassesExt;
 {$I KaM_Remake.inc}
 interface
 uses
-  SysUtils, TypInfo, Generics.Collections,
+  SysUtils, TypInfo, Classes,
+  Generics.Collections,
   KM_CommonClasses, KM_CommonTypes;
 
 type
   ERuntimeTypeError = class(Exception);
 
+  {$IFDEF WDC}
   TSet<T> = class
   const
     BIT_MASKS: array [0..7] of Byte = (1, 2, 4, 8, 16, 32, 64, 128);
@@ -20,16 +22,13 @@ type
     class function Cardinality(const Value: T): Integer; static;
     class function SetToString(const Value: T): String; static;
   end;
+  {$ENDIF}
 
   // List with unique elements
-  // Potentially very slow implementation because of 'Contains'
-  // (which loops through whole list when adding 1 element)
-  // However, we use it for Grou.UnitTypes which is at most like 4 values xD
   TKMListUnique<T> = class(TList<T>)
   public
     function Add(const Value: T): Integer; reintroduce;
   end;
-
 
   TKMWeightedList<T> = class(TList<T>)
     fWeight: array of Single;
@@ -51,9 +50,11 @@ type
     function Add(const Value: T): Integer; reintroduce;
   end;
 
+  {$IFDEF WDC}
   TKMEnumUtils = class
     class function TryGetAs<T>(aEnumStr: String; out aEnumValue: T): Boolean;
   end;
+  {$ENDIF}
 
   TKMVarValue = class
   private
@@ -85,12 +86,96 @@ type
     procedure Load(aLoadStream: TKMemoryStream);
   end;
 
+{$IFDEF FPC}
+// Simple helpers to replace TSet<T> generics that crash FPC 3.2.2
+function KMSetCardinality(const aSet; aSizeBytes: Integer): Integer;
+function KMSetToString(const aSet; aSizeBytes: Integer; aTypeInfo: PTypeInfo): String;
+{$ENDIF}
+
 
 implementation
 uses
   KM_CommonUtils;
 
 
+{ TKMListUnique<T> }
+function TKMListUnique<T>.Add(const Value: T): Integer;
+begin
+  if Contains(Value) then Exit(0);
+
+  Result := inherited Add(Value);
+end;
+
+
+{ TKMWeightedList }
+procedure TKMWeightedList<T>.Add(const aValue: T; aWeight: Single);
+begin
+  inherited Add(aValue);
+
+  if Count >= Length(fWeight) then
+    SetLength(fWeight, Count + 32);
+
+  fWeight[Count - 1] := aWeight;
+end;
+
+
+function TKMWeightedList<T>.GetWeightedRandom(out aValue: T): Boolean;
+var
+  I: Integer;
+  WeightsSum, Rnd: Extended;
+begin
+  Result := False;
+
+  if Count = 0 then
+    Exit;
+
+  WeightsSum := 0;
+  for I := 0 to Count - 1 do
+    WeightsSum := WeightsSum + fWeight[I];
+
+  Rnd := KaMRandomS1(WeightsSum{$IFDEF DBG_RNG_SPY}, 'TKMWeightedList.GetWeightedRandom'{$ENDIF});
+
+  for I := 0 to Count - 1 do
+  begin
+    if Rnd < fWeight[I] then
+    begin
+      aValue := Items[I];
+      Exit(True);
+    end;
+    Rnd := Rnd - fWeight[I];
+  end;
+  Assert(False, 'Error getting weighted random');
+end;
+
+
+{ TKMLimitedList<T> }
+constructor TKMLimitedList<T>.Create(aMaxLength: Integer);
+begin
+  inherited Create;
+
+  fMaxLength := aMaxLength;
+end;
+
+
+function TKMLimitedList<T>.Add(const Value: T): Integer;
+begin
+  Result := inherited Add(Value);
+
+  if Count > fMaxLength then
+    Delete(0); // Delete the oldest item
+end;
+
+
+{ TKMLimitedUniqueList }
+function TKMLimitedUniqueList<T>.Add(const Value: T): Integer;
+begin
+  if Contains(Value) then Exit(0);
+
+  Result := inherited Add(Value);
+end;
+
+
+{$IFDEF WDC}
 { TSet<T>
 
   Usage: Writeln(TSet<SomeSet>.Cardinality(Value));
@@ -186,236 +271,41 @@ begin
    aEnumValue := T(PEnumVal^);
    Result := True;
 end;
-
-
-{ TKMListUnique<T> }
-function TKMListUnique<T>.Add(const Value: T): Integer;
-begin
-  if Contains(Value) then Exit(0);
-
-  Result := inherited Add(Value);
-end;
-
-
-{ TKMWeightedList }
-procedure TKMWeightedList<T>.Add(const aValue: T; aWeight: Single);
-begin
-  inherited Add(aValue);
-
-  if Count >= Length(fWeight) then
-    SetLength(fWeight, Count + 32);
-
-  fWeight[Count - 1] := aWeight;
-end;
-
-
-function TKMWeightedList<T>.GetWeightedRandom(out aValue: T): Boolean;
-var
-  I: Integer;
-  WeightsSum, Rnd: Extended;
-begin
-  Result := False;
-
-  if Count = 0 then
-    Exit;
-
-  WeightsSum := 0;
-  for I := 0 to Count - 1 do
-    WeightsSum := WeightsSum + fWeight[I];
-
-  Rnd := KaMRandomS1(WeightsSum{$IFDEF DBG_RNG_SPY}, 'TKMWeightedList.GetWeightedRandom'{$ENDIF});
-
-  for I := 0 to Count - 1 do
-  begin
-    if Rnd < fWeight[I] then
-    begin
-      aValue := Items[I];
-      Exit(True);
-    end;
-    Rnd := Rnd - fWeight[I];
-  end;
-  Assert(False, 'Error getting weighted random');
-end;
-
-
-{ TKMLimitedList<T> }
-constructor TKMLimitedList<T>.Create(aMaxLength: Integer);
-begin
-  inherited Create;
-
-  fMaxLength := aMaxLength;
-end;
-
-
-function TKMLimitedList<T>.Add(const Value: T): Integer;
-begin
-  Result := inherited Add(Value);
-
-  if Count > fMaxLength then
-    Delete(0); // Delete the oldest item
-end;
-
-
-{ TKMLimitedUniqueList }
-function TKMLimitedUniqueList<T>.Add(const Value: T): Integer;
-begin
-  if Contains(Value) then Exit(0);
-
-  Result := inherited Add(Value);
-
-  if Count > fMaxLength then
-  begin
-    Delete(0); // Delete the oldest item
-    Result := Result - 1;
-  end;
-end;
-
-
-{ TKMVarValue }
-constructor TKMVarValue.Create(aVarRec: TVarRec);
-begin
-  inherited Create;
-
-  SetByVarRec(aVarRec);
-end;
-
-
-function TKMVarValue.ToVarRec: TVarRec;
-begin
-  case fType of
-    rcAnsiString:   begin
-                      Result.VType := vtAnsiString;
-                      Result.VAnsiString := Pointer(fStrA);
-                    end;
-    rcUnicodeString:begin
-                      Result.VType := vtUnicodeString;
-                      Result.VUnicodeString := Pointer(fStrW);
-                    end;
-    rcInteger:      begin
-                      Result.VType := vtInt64;
-                      Result.VInt64 := @fInt;
-                    end;
-    rcExtended:     begin
-                      Result.VType := vtExtended;
-                      Result.VExtended := @fExtn;
-                    end;
-    rcBoolean:      begin
-                      Result.VType := vtBoolean;
-                      Result.VBoolean := fBool;
-                    end;
-  else
-    raise Exception.Create('Unexpected type');
-  end;
-end;
-
-
-procedure TKMVarValue.SetByVarRec(aValue: TVarRec);
-begin
-  with aValue do
-  begin
-    case VType of
-      vtInteger:        fInt   := VInteger;
-      vtBoolean:        fBool  := VBoolean;
-      vtChar:           fStrA  := VChar;
-      vtExtended:       fExtn  := VExtended^;
-      vtInt64:          fInt   := VInt64^;
-      vtPChar:          fStrA  := VPChar^;
-      vtPWideChar:      fStrW  := string(VPWideChar^);
-      vtString:         fStrA  := VString^;
-      vtAnsiString:     fStrA  := AnsiString(VAnsiString);
-      vtUnicodeString:  fStrW  := string(VUnicodeString);
-    else
-      raise Exception.Create('Unexpected type');
-    end;
-
-    fType := rcNone;
-    case VType of
-      vtInteger,
-      vtInt64:          fType := rcInteger;
-      vtBoolean:        fType := rcBoolean;
-      vtExtended:       fType := rcExtended;
-      vtChar,
-      vtPChar,
-      vtString,
-      vtAnsiString:     fType := rcAnsiString;
-      vtPWideChar,
-      vtUnicodeString:  fType := rcUnicodeString;
-    else
-      raise Exception.Create('Unexpected type');
-    end;
-  end;
-end;
-
-
-procedure TKMVarValue.Load(aStream: TKMemoryStream);
-begin
-  aStream.Read(fType, SizeOf(fType));
-
-  case fType of
-    rcAnsiString:     aStream.ReadA(fStrA);
-    rcUnicodeString:  aStream.ReadW(fStrW);
-    rcInteger:        aStream.Read(fInt);
-    rcExtended:       aStream.Read(fExtn);
-    rcBoolean:        aStream.Read(fBool);
-  else
-    raise Exception.Create('Unexpected type');
-  end;
-end;
-
-
-procedure TKMVarValue.Save(aStream: TKMemoryStream);
-begin
-  aStream.Write(fType, SizeOf(fType));
-
-  case fType of
-    rcAnsiString:     aStream.WriteA(fStrA);
-    rcUnicodeString:  aStream.WriteW(fStrW);
-    rcInteger:        aStream.Write(fInt);
-    rcExtended:       aStream.Write(fExtn);
-    rcBoolean:        aStream.Write(fBool);
-  else
-    raise Exception.Create('Unexpected type');
-  end;
-end;
+{$ENDIF}
 
 
 { TKMVarValueList }
-procedure TKMVarValueList.AddVarRecs(aParams: array of const);
-var
-  I: Integer;
-  varValue: TKMVarValue;
-begin
-  for I := 0 to High(aParams) do
-  begin
-    varValue := TKMVarValue.Create(aParams[I]);
-    Add(varValue);
-  end;
-end;
-
-
 function TKMVarValueList.ToVarRecArray: TKMVarRecArray;
 var
   I: Integer;
 begin
   SetLength(Result, Count);
-
   for I := 0 to Count - 1 do
     Result[I] := Items[I].ToVarRec;
+end;
+
+
+procedure TKMVarValueList.AddVarRecs(aParams: array of const);
+var
+  I: Integer;
+begin
+  for I := Low(aParams) to High(aParams) do
+    Add(TKMVarValue.Create(aParams[I]));
 end;
 
 
 procedure TKMVarValueList.Load(aLoadStream: TKMemoryStream);
 var
   I, cnt: Integer;
-  varRec: TKMVarValue;
+  varValue: TKMVarValue;
 begin
   aLoadStream.CheckMarker('VarValueList');
   aLoadStream.Read(cnt);
   for I := 0 to cnt - 1 do
   begin
-    varRec := TKMVarValue.Create;
-    varRec.Load(aLoadStream);
-    Add(varRec);
+    varValue := TKMVarValue.Create;
+    varValue.Load(aLoadStream);
+    Add(varValue);
   end;
 end;
 
@@ -431,5 +321,152 @@ begin
 end;
 
 
-end.
+function KMSetCardinality(const aSet; aSizeBytes: Integer): Integer;
+var
+  I, J: Integer;
+  P: PByte;
+begin
+  Result := 0;
+  P := @aSet;
+  for I := 0 to aSizeBytes - 1 do
+    for J := 0 to 7 do
+      if ((P + I)^ and (1 shl J)) > 0 then
+        Inc(Result);
+end;
 
+
+function KMSetToString(const aSet; aSizeBytes: Integer; aTypeInfo: PTypeInfo): String;
+var
+  I, J: Integer;
+  P: PByte;
+  BaseType: PTypeInfo;
+begin
+  Result := '';
+  P := @aSet;
+  BaseType := GetTypeData(aTypeInfo)^.CompType;
+
+  for I := 0 to aSizeBytes - 1 do
+    for J := 0 to 7 do
+      if ((P + I)^ and (1 shl J)) > 0 then
+      begin
+        if Result <> '' then
+          Result := Result + ', ';
+        if BaseType^.Kind = tkInteger then
+          Result := Result + IntToStr(J + I * 8)
+        else
+          Result := Result + GetEnumName(BaseType, J + I * 8);
+      end;
+  Result := '[' + Result + ']';
+end;
+
+
+{ TKMVarValue }
+constructor TKMVarValue.Create(aVarRec: TVarRec);
+begin
+  inherited Create;
+
+  SetByVarRec(aVarRec);
+end;
+
+
+procedure TKMVarValue.SetByVarRec(aValue: TVarRec);
+begin
+  case aValue.VType of
+    vtAnsiString:     begin
+                        fType := rcAnsiString;
+                        fStrA := AnsiString(aValue.VAnsiString);
+                      end;
+    {$IFDEF WDC}
+    vtUnicodeString:  begin
+                        fType := rcUnicodeString;
+                        fStrW := UnicodeString(aValue.VUnicodeString);
+                      end;
+    {$ENDIF}
+    vtWideString:     begin
+                        fType := rcUnicodeString;
+                        fStrW := UnicodeString(aValue.VWideString);
+                      end;
+    vtString:         begin
+                        fType := rcAnsiString;
+                        fStrA := aValue.VString^;
+                      end;
+    vtInteger:        begin
+                        fType := rcInteger;
+                        fInt := aValue.VInteger;
+                      end;
+    vtInt64:          begin
+                        fType := rcInteger;
+                        fInt := aValue.VInt64^;
+                      end;
+    vtExtended:       begin
+                        fType := rcExtended;
+                        fExtn := aValue.VExtended^;
+                      end;
+    vtBoolean:        begin
+                        fType := rcBoolean;
+                        fBool := aValue.VBoolean;
+                      end;
+  end;
+end;
+
+
+function TKMVarValue.ToVarRec: TVarRec;
+begin
+  case fType of
+    rcAnsiString:     begin
+                        Result.VType := vtAnsiString;
+                        Result.VAnsiString := Pointer(fStrA);
+                      end;
+    rcUnicodeString:  begin
+                        {$IFDEF WDC}
+                        Result.VType := vtUnicodeString;
+                        Result.VUnicodeString := Pointer(fStrW);
+                        {$ENDIF}
+                        {$IFDEF FPC}
+                        Result.VType := vtWideString;
+                        Result.VWideString := Pointer(fStrW);
+                        {$ENDIF}
+                      end;
+    rcInteger:        begin
+                        Result.VType := vtInteger;
+                        Result.VInteger := fInt;
+                      end;
+    rcExtended:       begin
+                        Result.VType := vtExtended;
+                        Result.VExtended := @fExtn;
+                      end;
+    rcBoolean:        begin
+                        Result.VType := vtBoolean;
+                        Result.VBoolean := fBool;
+                      end;
+  end;
+end;
+
+
+procedure TKMVarValue.Save(aStream: TKMemoryStream);
+begin
+  aStream.Write(fType, SizeOf(fType));
+  case fType of
+    rcAnsiString:     aStream.WriteA(fStrA);
+    rcUnicodeString:  aStream.WriteW(fStrW);
+    rcInteger:        aStream.Write(fInt);
+    rcExtended:       aStream.Write(fExtn);
+    rcBoolean:        aStream.Write(fBool);
+  end;
+end;
+
+
+procedure TKMVarValue.Load(aStream: TKMemoryStream);
+begin
+  aStream.Read(fType, SizeOf(fType));
+  case fType of
+    rcAnsiString:     aStream.ReadA(fStrA);
+    rcUnicodeString:  aStream.ReadW(fStrW);
+    rcInteger:        aStream.Read(fInt);
+    rcExtended:       aStream.Read(fExtn);
+    rcBoolean:        aStream.Read(fBool);
+  end;
+end;
+
+
+end.

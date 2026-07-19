@@ -457,6 +457,11 @@ interface
   {$DEFINE DGL_LINUX}
 {$ENDIF}
 
+// detecting macOS/Darwin
+{$IFDEF darwin}
+  {$DEFINE DGL_MAC}
+{$ENDIF}
+
 // detecting 64 Bit CPU
 {$IFDEF CPU64}          // fpc on 64 bit cpus
   {$DEFINE DGL_64BIT}   // dgl define for 64 bit
@@ -468,6 +473,7 @@ uses
   SysUtils
   {$IFDEF DGL_WIN}, Windows{$ENDIF}
   {$IFDEF DGL_LINUX}, X, XLib, XUtil, types {$ENDIF}
+  {$IFDEF DGL_MAC}, types {$ENDIF}
   ;
 
 type
@@ -12895,8 +12901,8 @@ const
   GLU_LIBNAME = 'GLU32.dll';
 {$ELSE}
   {$IFDEF darwin}
-    OPENGL_LIBNAME = 'libGL.dylib';
-    GLU_LIBNAME = 'libGLU.dylib';
+    OPENGL_LIBNAME = '/System/Library/Frameworks/OpenGL.framework/OpenGL';
+    GLU_LIBNAME = '/System/Library/Frameworks/OpenGL.framework/OpenGL';
   {$ELSE}
     OPENGL_LIBNAME = 'libGL.so.1';
     GLU_LIBNAME = 'libGLU.so.1';
@@ -13165,6 +13171,17 @@ function dlclose(Lib: Pointer): LongInt; cdecl; external LibraryLib name 'dlclos
 function dlsym(Lib: Pointer; Name: PAnsiChar): Pointer; cdecl; external LibraryLib name 'dlsym';
 {$ENDIF}
 
+{$IFDEF DGL_MAC}
+const
+  RTLD_LAZY = $001;
+  RTLD_NOW = $002;
+  RTLD_BINDING_MASK = $003;
+
+function dlopen(Name: PAnsiChar; Flags: LongInt): Pointer; cdecl; external 'c' name 'dlopen';
+function dlclose(Lib: Pointer): LongInt; cdecl; external 'c' name 'dlclose';
+function dlsym(Lib: Pointer; Name: PAnsiChar): Pointer; cdecl; external 'c' name 'dlsym';
+{$ENDIF}
+
 
 function dglLoadLibrary(Name: PChar): Pointer;
 begin
@@ -13175,6 +13192,10 @@ begin
   {$IFDEF DGL_LINUX}
   Result := dlopen(Name, RTLD_LAZY);
   {$ENDIF}
+
+  {$IFDEF DGL_MAC}
+  Result := dlopen(Name, RTLD_LAZY);
+  {$ENDIF}
 end;
 
 
@@ -13182,7 +13203,7 @@ function dglFreeLibrary(LibHandle: Pointer): Boolean;
 begin
   if LibHandle = nil then
     Result := False
-  else
+  else begin
     {$IFDEF DGL_WIN}
     Result := FreeLibrary(HMODULE(LibHandle));
     {$ENDIF}
@@ -13190,6 +13211,15 @@ begin
     {$IFDEF DGL_LINUX}
     Result := dlclose(LibHandle) = 0;
     {$ENDIF}
+
+    {$IFDEF DGL_MAC}
+    Result := dlclose(LibHandle) = 0;
+    {$ENDIF}
+
+    {$IF not defined(DGL_WIN) and not defined(DGL_LINUX) and not defined(DGL_MAC)}
+    Result := False;
+    {$IFEND}
+  end;
 end;
 
 
@@ -13200,7 +13230,9 @@ begin
 
   {$IFNDEF DGL_WIN}
   {$IFNDEF DGL_LINUX}
+  {$IFNDEF DGL_MAC}
   Result :=  nil;
+  {$ENDIF}
   {$ENDIF}
   {$ENDIF}
 
@@ -13215,7 +13247,7 @@ begin
   {$ENDIF}
 
   {$IFDEF DGL_LINUX}
-    
+
     if not ForceDLSym then begin
       if Addr(glXGetProcAddress) <> nil then
         Result := glXGetProcAddress(ProcName);
@@ -13230,6 +13262,10 @@ begin
         exit;
     end;
 
+    Result := dlsym(LibHandle, ProcName);
+  {$ENDIF}
+
+  {$IFDEF DGL_MAC}
     Result := dlsym(LibHandle, ProcName);
   {$ENDIF}
 end;

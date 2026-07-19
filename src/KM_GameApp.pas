@@ -17,6 +17,10 @@ uses
   KM_WorkerThread;
 
 type
+  {$IFDEF FPC}
+  TKMStatusBarUpdateProc = procedure(aPanel: TKMStatusBarPanel; aText: string) of object;
+  {$ENDIF}
+
   //Methods relevant to gameplay
   TKMGameApp = class
   private
@@ -32,7 +36,7 @@ type
 
     fChat: TKMChat;
 
-    fOnStatusBarUpdate: TProc<TKMStatusBarPanel, string>;
+    fOnStatusBarUpdate: {$IFDEF FPC}TKMStatusBarUpdateProc{$ELSE}TProc<TKMStatusBarPanel, string>{$ENDIF};
     fOnGameSpeedChange: TSingleEvent;
     fOnGameStart: TKMGameModeChangeEvent;
     fOnGameEnd: TKMGameModeChangeEvent;
@@ -70,7 +74,7 @@ type
     procedure UpdatePerflog;
   public
     constructor Create(aRenderControl: TKMRenderControl; aScreenX, aScreenY: Word; aVSync: Boolean; aOnLoadingStep: TKMEvent;
-                       aOnLoadingText: TUnicodeStringEvent; aOnStatusBarUpdate: TProc<TKMStatusBarPanel, string>; NoMusic: Boolean = False);
+                       aOnLoadingText: TUnicodeStringEvent; aOnStatusBarUpdate: {$IFDEF FPC}TKMStatusBarUpdateProc{$ELSE}TProc<TKMStatusBarPanel, string>{$ENDIF}; NoMusic: Boolean = False);
     destructor Destroy; override;
     procedure AfterConstruction(aReturnToOptions: Boolean); reintroduce;
 
@@ -181,7 +185,7 @@ uses
 { TKMGameApp }
 // Creating everything needed for MainMenu, game stuff is created on StartGame
 constructor TKMGameApp.Create(aRenderControl: TKMRenderControl; aScreenX, aScreenY: Word; aVSync: Boolean; aOnLoadingStep: TKMEvent;
-                              aOnLoadingText: TUnicodeStringEvent; aOnStatusBarUpdate: TProc<TKMStatusBarPanel, string>; NoMusic: Boolean = False);
+                              aOnLoadingText: TUnicodeStringEvent; aOnStatusBarUpdate: {$IFDEF FPC}TKMStatusBarUpdateProc{$ELSE}TProc<TKMStatusBarPanel, string>{$ENDIF}; NoMusic: Boolean = False);
 begin
   inherited Create;
 
@@ -1407,7 +1411,7 @@ begin
 
   //Some PCs seem to change 8087CW randomly between events like Timers and OnMouse*,
   //so we need to set it right before we do game logic processing
-  Set8087CW($133F);
+  {$IFDEF WDC}Set8087CW($133F);{$ENDIF}
 
   Inc(fGlobalTickCount);
   //Always update networking for auto reconnection and query timeouts

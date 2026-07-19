@@ -249,7 +249,7 @@ type
 
 implementation
 uses
-  IOUtils, TypInfo,
+  {$IFDEF WDC}IOUtils,{$ENDIF} TypInfo,
   KM_Entity,
   KM_AI, KM_AIDefensePos,
   KM_Game, KM_GameParams, KM_GameTypes, KM_FogOfWar,
@@ -1365,7 +1365,7 @@ begin
     and gHands[aHand].AI.Setup.NewAI then
       gHands[aHand].AI.ArmyManagement.ArmyVectorFieldScanHouses := aHouses
     else
-      LogParamWarn('Actions.AAIAttackHouseTypesSet', [aHand, TSet<TKMHouseTypeSet>.SetToString(aHouses)]);
+      LogParamWarn('Actions.AAIAttackHouseTypesSet', [aHand, {$IFDEF WDC}TSet<TKMHouseTypeSet>.SetToString(aHouses){$ELSE}KMSetToString(aHouses, SizeOf(aHouses), TypeInfo(TKMHouseType)){$ENDIF}]);
   except
     gScriptEvents.ExceptionOutsideScript := True; //Don't blame script for this exception
     raise;
@@ -3926,9 +3926,10 @@ end;
 
 function TKMScriptActions._MapTilesArraySet(aFuncName: string; aTiles: array of TKMTerrainTileBrief; aRevertOnFail, aShowDetailedErrors: Boolean): Boolean;
   function GetTileErrorsStr(aErrorsIn: TKMTileChangeTypeSet): string;
+  var I: TKMTileChangeType;
   begin
     Result := '';
-    for var I := Low(TKMTileChangeType) to High(TKMTileChangeType) do
+    for I := Low(TKMTileChangeType) to High(TKMTileChangeType) do
       if I in aErrorsIn then
         Result := Result + IfThen(Result <> '', ', ') + GetEnumName(TypeInfo(TKMTileChangeType), Integer(I));
   end;
@@ -4014,10 +4015,21 @@ var
   tilesStringArray: TAnsiStringArray;
   tiles: TKMTerrainTileBriefArray;
   parserSuccess: Boolean;
+  {$IFNDEF WDC}fileContentSL: TStringList;{$ENDIF}
 begin
   try
     filePath := gGame.GetMapFilePath(aFileName, '.tiles');
+    {$IFDEF WDC}
     fileContent := TFile.ReadAllText(filePath);
+    {$ELSE}
+    fileContentSL := TStringList.Create;
+    try
+      fileContentSL.LoadFromFile(filePath);
+      fileContent := fileContentSL.Text;
+    finally
+      fileContentSL.Free;
+    end;
+    {$ENDIF}
     tilesStringArray := StrSplitA(fileContent, ';');
 
     parserSuccess := _MapTileStringToType(tilesStringArray, tiles, aOffsetX, aOffsetY);

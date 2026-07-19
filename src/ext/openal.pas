@@ -71,6 +71,10 @@ const
   callibname='libopenal.so';
   calutlibname='libalut.so';
 {$ENDIF}
+{$IFDEF DARWIN}
+  callibname='/System/Library/Frameworks/OpenAL.framework/OpenAL';
+  calutlibname='';
+{$ENDIF}
 
 
 type
@@ -1892,12 +1896,20 @@ var
   function LoadWavStream(Stream: Tstream; var format: TALenum; var data: TALvoid; var size: TALsizei; var freq: TALsizei; var loop: TALint): Boolean; //Unofficial
 {$ENDIF}
 
-var
-  LibHandle          : THandle = 0;
-{$IFDEF ALUT}
-  AlutLibHandle      : THandle = 0;
+{$IFDEF DARWIN}
+type
+  TLibHandle = PtrUInt; // THandle is 32-bit on FPC macOS, but dlopen returns a pointer
+{$ELSE}
+type
+  TLibHandle = THandle;
 {$ENDIF}
-  EFXUtilLibHandle       : THandle = 0;
+
+var
+  LibHandle          : TLibHandle = 0;
+{$IFDEF ALUT}
+  AlutLibHandle      : TLibHandle = 0;
+{$ENDIF}
+  EFXUtilLibHandle       : TLibHandle = 0;
 
 {$IFDEF ALUT}
 function InitOpenAL(LibName: String = callibname;AlutLibName: String = calutlibname): Boolean;
@@ -1945,17 +1957,17 @@ function LoadLibraryEx(Name : PChar; Flags : LongInt) : Pointer; cdecl; external
 function GetProcAddressEx(Lib : Pointer; Name : PChar) : Pointer; cdecl; external LibraryLib name 'dlsym';
 function FreeLibraryEx(Lib : Pointer) : LongInt; cdecl; external LibraryLib name 'dlclose';
 
-function LoadLibrary(Name : PChar) : THandle;
+function LoadLibrary(Name : PChar) : TLibHandle;
 begin
- Result := THandle(LoadLibraryEx(Name, RTLD_LAZY));
+ Result := TLibHandle(LoadLibraryEx(Name, RTLD_LAZY));
 end;
 
-function GetProcAddress(LibHandle : THandle; ProcName : PChar) : Pointer;
+function GetProcAddress(LibHandle : TLibHandle; ProcName : PChar) : Pointer;
 begin
  Result := GetProcAddressEx(Pointer(LibHandle), ProcName);
 end;
 
-function FreeLibrary(LibHandle : THandle) : Boolean;
+function FreeLibrary(LibHandle : TLibHandle) : Boolean;
 begin
  if LibHandle = 0 then
    Result := False

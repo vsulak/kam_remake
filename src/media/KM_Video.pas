@@ -11,7 +11,9 @@ uses
   ;
 
 type
+  {$IFDEF FPC}TKMVideoPlayerCallback = procedure of object;{$ELSE}
   TKMVideoPlayerCallback = reference to procedure;
+  {$ENDIF}
 
   TKMVideoFileKind = (
     vfkNone,
@@ -97,7 +99,7 @@ var
 
 implementation
 uses
-  System.Math,
+  {$IFDEF WDC}System.Math,{$ELSE}Math,{$ENDIF}
   dglOpenGL,
   KM_Render, KM_RenderTypes, KM_RenderUI, KM_ResLocales,
   KM_GameApp, KM_GameSettings,

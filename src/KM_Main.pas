@@ -8,7 +8,7 @@ uses
   KM_WindowParams,
   KM_GameAppSettings
   {$IFDEF FPC}
-  , Types
+  , Types, SysUtils
   {$ENDIF}
   ;
 
@@ -54,6 +54,9 @@ type
     function DoHaveGenericPermission: Boolean;
 
     procedure TryWriteIntoGameFolder();
+    {$IFDEF FPC}
+    procedure HandleApplicationException(Sender: TObject; E: Exception);
+    {$ENDIF}
   public
     constructor Create;
     destructor Destroy; override;
@@ -100,7 +103,7 @@ var
 
 implementation
 uses
-  Classes, SysUtils, SysConst, StrUtils, Math,
+  Classes, {$IFNDEF FPC} SysUtils, {$ENDIF} SysConst, StrUtils, Math,
   Forms,
   {$IF DEFINED(MSWindows)}
   MMSystem,
@@ -157,6 +160,7 @@ begin
 
   {$IFDEF DBG_PERFLOG}
   gPerfLogs := TKMPerfLogs.Create([], True);
+  {$IFDEF WDC}
   gPerfLogs.ShowForm(fFormMain.cpPerfLogs);
   gPerfLogs.OnFormChanged := fFormMain.OtherFormChanged;
 
@@ -166,8 +170,9 @@ begin
   fFormMain.cpPerfLogs.Height := gPerfLogs.FormHeight;
   fFormMain.cpPerfLogs.Collapsed := collapsed; //Restore collapsed flag
   fFormMain.DevSettings.SkipSave := False;
+  {$ENDIF}
   {$ELSE}
-  fFormMain.cpPerfLogs.Hide;
+  {$IFDEF WDC}fFormMain.cpPerfLogs.Hide;{$ENDIF}
   {$ENDIF}
 end;
 
@@ -177,7 +182,8 @@ begin
   // FormLoading is owned by the Application
   // If exception occurs and gMain is freed, make sure to remove fsStayOnTop from FormLoading,
   // so that madExcept dialogs (main and its child SendBugReport) are not overlapped by it
-  fFormLoading.FormStyle := fsNormal;
+  if fFormLoading <> nil then
+    fFormLoading.FormStyle := fsNormal;
 
   {$IFDEF DBG_PERFLOG}gPerfLogs.Free;{$ENDIF}
 
@@ -338,6 +344,10 @@ begin
   Application.OnActivate := DoActivate;
   Application.OnDeactivate := DoDeactivate;
   Application.OnRestore := DoRestore; //OnActivate seems to happen at the wrong times, OnRestore happens when alt-tabbing back in full screen mode
+  {$IFDEF FPC}
+  // Log a symbolized backtrace for unhandled exceptions (madExcept covers this on WDC)
+  Application.OnException := HandleApplicationException;
+  {$ENDIF}
 
   //Update map cache files (*.mi) in the background so map lists load faster
   MapCacheUpdate;
@@ -356,6 +366,37 @@ procedure TKMMain.HandleStatusBarText(aPanelIndex: TKMStatusBarPanel; aText: str
 begin
   fFormMain.StatusBar1.Panels[Ord(aPanelIndex)].Text := aText;
 end;
+
+
+{$IFDEF FPC}
+// Known code address logged with each exception report; lets crash addresses be
+// mapped back to functions offline (runtime slide = logged anchor - its nm address)
+procedure ExceptionBacktraceAnchor;
+begin
+end;
+
+// Write exception class, message and raw backtrace addresses into the game log
+// before showing the standard error dialog (FPC 3.2.2 ICEs on -g/-gl here, so
+// addresses are symbolized offline via the anchor above)
+procedure TKMMain.HandleApplicationException(Sender: TObject; E: Exception);
+var
+  I: Integer;
+  frames: PPointer;
+  report: string;
+begin
+  report := 'Unhandled exception: ' + E.ClassName + ': ' + E.Message + LineEnding
+          + Format('anchor ExceptionBacktraceAnchor=$%x', [PtrUInt(@ExceptionBacktraceAnchor)]) + LineEnding
+          + BackTraceStrFunc(ExceptAddr);
+  frames := ExceptFrames;
+  for I := 0 to ExceptFrameCount - 1 do
+    report := report + LineEnding + BackTraceStrFunc(frames[I]);
+
+  if gLog <> nil then
+    gLog.AddTime(report);
+
+  Application.ShowException(E);
+end;
+{$ENDIF}
 
 
 procedure TKMMain.GameSpeedChange(aSpeed: Single);
@@ -584,6 +625,7 @@ begin
     Exit;
   end;
 
+  {$IFDEF WDC}
   if CHECK_8087CW then
     //$1F3F is used to mask out reserved/undefined bits
     Assert((Get8087CW and $1F3F = $133F), '8087CW is wrong');
@@ -591,6 +633,7 @@ begin
   //Some PCs seem to change 8087CW randomly between events like Timers and OnMouse*,
   //so we need to set it right before we do game logic processing
   Set8087CW($133F);
+  {$ENDIF}
 
   //Priority 1. Do we need to tick?
   timeSinceTick := TimeSince(fTickSchedule);

@@ -45,9 +45,13 @@ const
   OggLib = 'ogg.dll';
 {$ENDIF WIN32}
 
-{$IFDEF UNIX}
-  OggLib = 'libogg.so';
-{$ENDIF UNIX}
+{$IFDEF DARWIN}
+  OggLib = 'libogg.dylib';
+{$ELSE}
+  {$IFDEF UNIX}
+    OggLib = 'libogg.so';
+  {$ENDIF UNIX}
+{$ENDIF DARWIN}
 
 {$IFDEF FPC}
   {$IFDEF WIN32}

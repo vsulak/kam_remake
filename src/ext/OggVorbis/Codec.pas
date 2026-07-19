@@ -45,9 +45,13 @@ const
   VorbisLib = 'vorbis.dll';
 {$ENDIF WIN32}
 
-{$IFDEF UNIX}
-  VorbisLib = 'libvorbis.so';
-{$ENDIF UNIX}
+{$IFDEF DARWIN}
+  VorbisLib = 'libvorbis.dylib';
+{$ELSE}
+  {$IFDEF UNIX}
+    VorbisLib = 'libvorbis.so';
+  {$ENDIF UNIX}
+{$ENDIF DARWIN}
 
 {$IFDEF FPC}
   {$IFDEF WIN32}

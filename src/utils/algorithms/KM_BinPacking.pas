@@ -74,22 +74,38 @@ begin
 end;
 
 
+// Sort items by size descending using insertion sort — O(n^2) worst case but
+// stable and very fast in practice for the small-n and mostly-sorted inputs
+// that arise from regular sprite sizes.  The old bubble sort had the same
+// asymptotic complexity but 2× more comparisons on average.
+procedure SortItemsBySize(var aItems: TIndexSizeArray);
+var
+  I, J: Integer;
+  Tmp: TIndexItem;
+begin
+  for I := 1 to High(aItems) do
+  begin
+    Tmp := aItems[I];
+    J := I - 1;
+    while (J >= 0) and ((aItems[J].X + aItems[J].Y) < (Tmp.X + Tmp.Y)) do
+    begin
+      aItems[J + 1] := aItems[J];
+      Dec(J);
+    end;
+    aItems[J + 1] := Tmp;
+  end;
+end;
+
+
 procedure BinPack(aItems: TIndexSizeArray; aMaxSize: Word; aPad: Byte; var aOut: TBinArray);
 var
-  I, K: Integer;
+  I: Integer;
   BinManager: TBinManager;
 begin
   Assert(MakePOT(aMaxSize) = aMaxSize);
 
-  //Sort Items by size to improve packing efficiency
-  for I := 0 to High(aItems) do
-    for K := I + 1 to High(aItems) do
-      if (aItems[K].X + aItems[K].Y) > (aItems[I].X + aItems[I].Y) then
-      begin
-        SwapInt(aItems[I].ID, aItems[K].ID);
-        SwapInt(aItems[I].X, aItems[K].X);
-        SwapInt(aItems[I].Y, aItems[K].Y);
-      end;
+  //Sort Items by size (largest first) to improve packing efficiency
+  SortItemsBySize(aItems);
 
   //Do the packing
   BinManager := TBinManager.Create(aMaxSize, aMaxSize, aPad);

@@ -6,6 +6,7 @@ uses
   Generics.Collections,
   KM_ResSprites, KM_ResTypes,
   KM_WorkerThread,
+  KM_CommonTypes,
   KM_Defaults;
 
 
@@ -33,14 +34,14 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    procedure ExportTreeAnimHD(aOnDone: TProc<string>);
-    procedure ExportTreeAnim(aOnDone: TProc<string>);
-    procedure ExportHouseAnimHD(aOnDone: TProc<string>);
-    procedure ExportHouseAnim(aOnDone: TProc<string>);
-    procedure ExportUnitAnimHD(aUnitFrom, aUnitTo: TKMUnitType; aExportThoughts, aExportUnused: Boolean; aOnDone: TProc<string>);
-    procedure ExportUnitAnim(aUnitFrom, aUnitTo: TKMUnitType; aExportUnused: Boolean; aOnDone: TProc<string>);
-    procedure ExportSpritesFromRXXToPNG(aRT: TRXType; aOnDone: TProc<string>);
-    procedure ExportSpritesFromRXAToPNG(aRT: TRXType; aOnDone: TProc<string>);
+    procedure ExportTreeAnimHD(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportTreeAnim(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportHouseAnimHD(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportHouseAnim(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportUnitAnimHD(aUnitFrom, aUnitTo: TKMUnitType; aExportThoughts, aExportUnused: Boolean; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportUnitAnim(aUnitFrom, aUnitTo: TKMUnitType; aExportUnused: Boolean; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportSpritesFromRXXToPNG(aRT: TRXType; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
+    procedure ExportSpritesFromRXAToPNG(aRT: TRXType; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
   end;
 
 
@@ -50,7 +51,7 @@ uses
   KromUtils,
   KM_Resource, KM_ResUnits, KM_ResHouses, KM_ResMapElements, KM_ResTexts, KM_ResInterpolation,
   KM_FileIO, KM_IoPNG,
-  KM_Points, KM_CommonTypes, KM_Log;
+  KM_Points, KM_Log;
 
 
 { TKMAtlasAddress }
@@ -85,31 +86,40 @@ end;
 
 function TKMResExporter.GetOrCreateExportWorker: TKMWorkerThread;
 begin
+  {$IFDEF WDC}
   if fExportWorkerHolder = nil then
     fExportWorkerHolder := TKMWorkerThreadHolder.Create('ExportWorker');
 
   Result := fExportWorkerHolder.Worker;
+  {$ELSE}
+  Result := nil;
+  {$ENDIF}
 end;
 
 
 procedure TKMResExporter.PrepareAtlasMap(aSpritePack: TKMSpritePack);
+var
+  SAT: TKMSpriteAtlasType;
+  I, K: Integer;
+  atlas: TKMSpriteAtlasData;
 begin
   fAtlasMap[saBase].Clear;
   fAtlasMap[saMask].Clear;
 
   // Map spriteID to loaded from RXA Atlases
-  for var SAT := Low(aSpritePack.Atlases) to High(aSpritePack.Atlases) do
-    for var I := Low(aSpritePack.Atlases[SAT]) to High(aSpritePack.Atlases[SAT]) do
+  for SAT := Low(aSpritePack.Atlases) to High(aSpritePack.Atlases) do
+    for I := Low(aSpritePack.Atlases[SAT]) to High(aSpritePack.Atlases[SAT]) do
     begin
-      var atlas := aSpritePack.Atlases[SAT, I];
-      for var K := 0 to High(atlas.Container.Sprites) do
+      atlas := aSpritePack.Atlases[SAT, I];
+      for K := 0 to High(atlas.Container.Sprites) do
         fAtlasMap[SAT].Add(atlas.Container.Sprites[K].SpriteID, TKMAtlasAddress.New(I, K));
     end;
 end;
 
 
-procedure TKMResExporter.ExportSpritesFromRXXToPNG(aRT: TRXType; aOnDone: TProc<string>);
+procedure TKMResExporter.ExportSpritesFromRXXToPNG(aRT: TRXType; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -128,11 +138,13 @@ begin
     end,
     aOnDone,
     'Export from ' + RX_INFO[aRT].FileName + '.rxx');
+{$ENDIF}
 end;
 
 
-procedure TKMResExporter.ExportSpritesFromRXAToPNG(aRT: TRXType; aOnDone: TProc<string>);
+procedure TKMResExporter.ExportSpritesFromRXAToPNG(aRT: TRXType; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -168,11 +180,13 @@ begin
     end,
     aOnDone,
     'Export from ' + RX_INFO[aRT].FileName + '.rxa');
+{$ENDIF}
 end;
 
 
-procedure TKMResExporter.ExportUnitAnimHD(aUnitFrom, aUnitTo: TKMUnitType; aExportThoughts, aExportUnused: Boolean; aOnDone: TProc<string>);
+procedure TKMResExporter.ExportUnitAnimHD(aUnitFrom, aUnitTo: TKMUnitType; aExportThoughts, aExportUnused: Boolean; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -332,12 +346,14 @@ begin
     end,
     aOnDone,
     'Export HD units anim');
+{$ENDIF}
 end;
 
 
 //Export Units graphics categorized by Unit and Action
-procedure TKMResExporter.ExportUnitAnim(aUnitFrom, aUnitTo: TKMUnitType; aExportUnused: Boolean; aOnDone: TProc<string>);
+procedure TKMResExporter.ExportUnitAnim(aUnitFrom, aUnitTo: TKMUnitType; aExportUnused: Boolean; aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -476,11 +492,13 @@ begin
     end,
     aOnDone,
     'Export units anim');
+{$ENDIF}
 end;
 
 
-procedure TKMResExporter.ExportHouseAnimHD(aOnDone: TProc<string>);
+procedure TKMResExporter.ExportHouseAnimHD(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -579,12 +597,14 @@ begin
     end,
     aOnDone,
     'Export HD House animation');
+{$ENDIF}
 end;
 
 
 //Export Houses graphics categorized by House and Action
-procedure TKMResExporter.ExportHouseAnim(aOnDone: TProc<string>);
+procedure TKMResExporter.ExportHouseAnim(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -666,6 +686,7 @@ begin
     end,
     aOnDone,
     'Export house anim');
+{$ENDIF}
 end;
 
 
@@ -721,12 +742,13 @@ end;
 procedure TKMResExporter.ExportImageAndDataFromAtlas(aSpritePack: TKMSpritePack; aSpriteID: Integer; const aPath: string);
 var
   textData: string;
+  strFilenameBase, strFilenameMask, strFilenameText: string;
 begin
   if aSpritePack.RXData.Flag[aSpriteID] <> 1 then Exit;
 
-  var strFilenameBase := aPath + Format('%d_%.4d.png', [Ord(aSpritePack.RT)+1, aSpriteID]);
-  var strFilenameMask := aPath + Format('%d_%.4da.png', [Ord(aSpritePack.RT)+1, aSpriteID]);
-  var strFilenameText := aPath + Format('%d_%.4d.txt', [Ord(aSpritePack.RT)+1, aSpriteID]);
+  strFilenameBase := aPath + Format('%d_%.4d.png', [Ord(aSpritePack.RT)+1, aSpriteID]);
+  strFilenameMask := aPath + Format('%d_%.4da.png', [Ord(aSpritePack.RT)+1, aSpriteID]);
+  strFilenameText := aPath + Format('%d_%.4d.txt', [Ord(aSpritePack.RT)+1, aSpriteID]);
 
   ExportImageFromAtlas(aSpritePack, aSpriteID, strFilenameBase, strFilenameMask);
 
@@ -745,8 +767,9 @@ begin
 end;
 
 
-procedure TKMResExporter.ExportTreeAnimHD(aOnDone: TProc<string>);
+procedure TKMResExporter.ExportTreeAnimHD(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -803,12 +826,14 @@ begin
     end,
     aOnDone,
     'Export HD Tree animation');
+{$ENDIF}
 end;
 
 
 //Export Trees graphics categorized by ID
-procedure TKMResExporter.ExportTreeAnim(aOnDone: TProc<string>);
+procedure TKMResExporter.ExportTreeAnim(aOnDone: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF});
 begin
+{$IFDEF WDC}
   // Make sure we loaded all of the resources (to avoid collisions with async res loader
   gRes.LoadGameResources(True);
 
@@ -861,6 +886,7 @@ begin
     end,
     aOnDone,
     'Export tree anim');
+{$ENDIF}
 end;
 
 

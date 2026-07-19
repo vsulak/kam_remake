@@ -2223,6 +2223,7 @@ begin
   if (aPathName <> '') then
   begin
     // We can make directories in async too, since all save parts are made in async now
+    {$IFDEF WDC}
     aSaveWorkerThread.QueueWork(procedure
     begin
       path := ExtractFilePath(path);
@@ -2243,6 +2244,21 @@ begin
       else
         ForceDirectories(path);
     end, 'Prepare save dir');
+    {$ELSE}
+    path := ExtractFilePath(path);
+    if DirectoryExists(path) then
+    begin
+      if aSaveByPlayer then
+      begin
+        KMDeleteFolderToBin(path);
+        ForceDirectories(path);
+      end
+      else
+        KMDeleteFolderContent(path);
+    end
+    else
+      ForceDirectories(path);
+    {$ENDIF}
   end;
 end;
 
@@ -2370,6 +2386,7 @@ begin
   {$ENDIF}
   try
     // Emulate slow save in the async save thread
+    {$IFDEF WDC}
     if SLOW_GAME_SAVE_ASYNC then
       aSaveWorkerThread.QueueWork(procedure
         begin
@@ -2377,6 +2394,7 @@ begin
         end,
         'Slow Game Save'
       );
+    {$ENDIF}
 
     // Convert name to full path+name
     fullPath := SaveName(aSaveName, EXT_SAVE_MAIN, fParams.IsMultiplayer);
@@ -2453,7 +2471,11 @@ begin
       // Increase numbers for autosave names in the list
       for I := fAutosavesCnt - 1 downto 1 do
       begin
+        {$IFDEF WDC}
         index := fLastSaves.IndexOfItem(AUTOSAVE_SAVE_NAME + Int2Fix(I, 2), TDirection.FromEnd);
+        {$ELSE}
+        index := fLastSaves.IndexOf(AUTOSAVE_SAVE_NAME + Int2Fix(I, 2));
+        {$ENDIF}
         // we use limited list, so some autosave names will be deleted if other save names were added earlier
         if index <> -1 then
           fLastSaves[index] := AUTOSAVE_SAVE_NAME + Int2Fix(I + 1, 2);
@@ -3230,7 +3252,7 @@ begin
   Result := False;
   // Some PCs seem to change 8087CW randomly between events like Timers and OnMouse*,
   // so we need to set it right before we do game logic processing
-  Set8087CW($133F);
+  {$IFDEF WDC}Set8087CW($133F);{$ENDIF}
 
   if fIsPaused or ReadyToStop then
     Exit;

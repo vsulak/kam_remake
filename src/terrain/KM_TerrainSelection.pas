@@ -2,8 +2,9 @@ unit KM_TerrainSelection;
 {$I KaM_Remake.inc}
 interface
 uses
-  System.Classes, System.Math,
-  Vcl.Clipbrd,
+  {$IFDEF WDC}System.Classes, System.Math,{$ELSE}Classes, Math,{$ENDIF}
+  {$IFDEF WDC}Vcl.Clipbrd,{$ENDIF}
+  {$IFDEF FPC}Clipbrd,{$ENDIF}
   {$IFDEF MSWindows} Winapi.Windows, {$ENDIF}
   KromUtils,
   KM_CommonClasses, KM_Points, KM_Terrain, KM_TerrainTypes, KM_TerrainPainter, KM_RenderPool, KM_ResTilesetTypes,

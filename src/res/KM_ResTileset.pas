@@ -397,7 +397,7 @@ begin
   for I := 0 to 3 do
     Include(terKinds, fTiles[aTile].TerKinds[I]);
 
-  Result := TSet<TKMTerrainKindSet>.Cardinality(terKinds);
+  Result := {$IFDEF WDC}TSet<TKMTerrainKindSet>.Cardinality(terKinds){$ELSE}KMSetCardinality(terKinds, SizeOf(terKinds)){$ENDIF};
 end;
 
 
@@ -760,6 +760,7 @@ var
   nTile, nAnimLayer: TKMJsonObject;
   nTiles, nTerKinds, nAnimLayers, nAnims: TKMJsonArray;
   terKind: TKMTerrainKind;
+  {$IFDEF FPC}val: Integer;{$ENDIF}
 begin
 
   nTiles := fJsonDoc.Root.A['Tiles'];
@@ -801,10 +802,20 @@ begin
         try
           Assert(nTerKinds.Count = 4);
           for K := 0 to 3 do
+            {$IFDEF WDC}
             if TKMEnumUtils.TryGetAs<TKMTerrainKind>(nTerKinds.S[K], terKind) then
               fTiles[I].TerKinds[K] := terKind
             else
               raise Exception.Create('Error loading ' + jsonPath + ': wrong CornersTerKind: ' + nTerKinds.S[K]);
+            {$ELSE}
+            begin
+              val := GetEnumValue(TypeInfo(TKMTerrainKind), nTerKinds.S[K]);
+              if val <> -1 then
+                fTiles[I].TerKinds[K] := TKMTerrainKind(val)
+              else
+                raise Exception.Create('Error loading ' + jsonPath + ': wrong CornersTerKind: ' + nTerKinds.S[K]);
+            end;
+            {$ENDIF}
         finally
           nTerKinds.Free;
         end;

@@ -2,7 +2,6 @@ unit KM_Hand;
 {$I KaM_Remake.inc}
 interface
 uses
-  Generics.Collections,
   KM_AI,
   KM_Units, KM_UnitsCollection, KM_UnitGroup, KM_UnitWarrior,
   KM_Houses, KM_HouseCollection, KM_HouseInn,

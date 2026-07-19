@@ -1,4 +1,5 @@
 unit VorbisFile;
+{$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
 
 {************************************************************************}
 {                                                                        }
@@ -47,9 +48,13 @@ const
   VorbisfileLib = 'vorbisfile.dll';
 {$ENDIF WIN32}
 
-{$IFDEF UNIX}
-  VorbisfileLib = 'libvorbisfile.so';
-{$ENDIF UNIX}
+{$IFDEF DARWIN}
+  VorbisfileLib = 'libvorbisfile.dylib';
+{$ELSE}
+  {$IFDEF UNIX}
+    VorbisfileLib = 'libvorbisfile.so';
+  {$ENDIF UNIX}
+{$ENDIF DARWIN}
 
 {$IFDEF FPC}
   {$IFDEF WIN32}
@@ -185,7 +190,7 @@ const
 
   EOF = -1;
 
-function ops_read_func(var ptr; size, nmemb: size_t; const datasource): size_t;
+function ops_read_func(var ptr; size, nmemb: size_t; const datasource): size_t; cdecl;
 { Returns amount of items completely read successfully, returns indeterminate
   value on error. The value of a partially read item cannot be determined. Does
   not lead to valid feof or ferror responses, because they are not possible to
@@ -204,7 +209,7 @@ begin
   end;
 end;
 
-function ops_seek_func (const datasource; offset: ogg_int64_t; whence: int): int;
+function ops_seek_func (const datasource; offset: ogg_int64_t; whence: int): int; cdecl;
 { Returns zero on success, returns a non-zero value on error, result is undefined
   when device is unseekable. }
 begin
@@ -220,7 +225,7 @@ begin
   end;
 end;
 
-function ops_close_func(const datasource): int;
+function ops_close_func(const datasource): int; cdecl;
 { Returns zero when device was successfully closed, EOF on error. }
 begin
   try
@@ -231,7 +236,7 @@ begin
   end;
 end;
 
-function ops_tell_func(const datasource): long;
+function ops_tell_func(const datasource): long; cdecl;
 { Returns the current position of the file pointer on success, returns -1 on
   error, result is undefined when device is unseekable, does not set 'errno',
   does not perform linebreak conversion. }

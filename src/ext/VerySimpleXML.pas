@@ -24,6 +24,7 @@
   and Lazarus, as well as changes to better suit our needs }
 
 unit VerySimpleXML;
+{$IFDEF FPC}{$MODE DELPHI}{$H+}{$ENDIF}
 
 interface
 
@@ -98,7 +99,7 @@ type
     FOnNodeSetText: TXmlOnNodeSetText;
     FOnNodeSetName: TXmlOnNodeSetText;
     procedure Parse(Strings: TStringList);
-    procedure Walk(Lines: TStringList; Prefix: String; Node: TXmlNode);
+    procedure Walk(aLines: TStringList; Prefix: String; Node: TXmlNode);
     function GetText: String;
     procedure SetText(aText: String);
   public
@@ -383,7 +384,7 @@ begin
   Lines.SaveToFile(FileName);
 end;
 
-procedure TXmlVerySimple.Walk(Lines: TStringList; Prefix: String;
+procedure TXmlVerySimple.Walk(aLines: TStringList; Prefix: String;
   Node: TXmlNode);
 var
   Attribute: TXmlAttribute;
@@ -415,17 +416,17 @@ begin
     (Node <> Header) then
   begin
     S := S + '</' + Node.NodeName + '>';
-    Lines.Add(S);
+    aLines.Add(S);
   end
   else
   begin
-    Lines.Add(S);
+    aLines.Add(S);
     OriginalPrefix := Prefix;
     Prefix := Prefix + '  ';
     for I:=0 to Node.ChildNodes.Count-1 do
-      Walk(Lines, Prefix, Node.ChildNodes[I]);
+      Walk(aLines, Prefix, Node.ChildNodes[I]);
     if (Node <> Header) and (not IsSelfClosing) then
-      Lines.Add(OriginalPrefix + '</' + Node.NodeName + '>');
+      aLines.Add(OriginalPrefix + '</' + Node.NodeName + '>');
   end;
 end;
 

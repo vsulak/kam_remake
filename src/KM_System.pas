@@ -18,7 +18,6 @@ type
     fFlashing: Boolean;
     {$ENDIF}
     {$ENDIF}
-
     function GetCursor: TKMCursorImageType;
     procedure SetCursor(Value: TKMCursorImageType);
   public
@@ -40,7 +39,8 @@ var
 implementation
 uses
   SysUtils, Math,
-  Forms, Graphics;
+  Forms, Graphics,
+  KM_Log;
 
 const
   // Screen.Cursors[0] is used by System default cursor
@@ -50,6 +50,15 @@ const
   CUSTOM_CUR_CNT = 1;
 
   CUSTOM_CURSORS: array [0..CUSTOM_CUR_CNT-1] of TKMCursorImageType = (kmcAnimatedDirSelector);
+
+{$IFDEF DARWIN}
+var
+  // Tracks the logical cursor on macOS where custom cursors are not realized.
+  // Unit-level (not an instance field) on purpose: SetCursor/GetCursor are
+  // called during early resource loading while gSystem is still nil, so they
+  // must not dereference Self.
+  gMacCursor: TKMCursorImageType = kmcDefault;
+{$ENDIF}
 
 
 { TKMSystem }
@@ -67,6 +76,13 @@ end;
 
 function TKMSystem.GetCursor: TKMCursorImageType;
 begin
+  {$IFDEF DARWIN}
+  // Screen.Cursor is intentionally never set on macOS (see SetCursor); keep the
+  // game's cursor state machine working by returning our tracked value.
+  Result := gMacCursor;
+  Exit;
+  {$ENDIF}
+
   if InRange(Screen.Cursor - CURSOR_CNT_OFFSET, Ord(Low(TKMCursorImageType)), Ord(High(TKMCursorImageType))) then
     Result := TKMCursorImageType(Screen.Cursor - CURSOR_CNT_OFFSET)
   else
@@ -77,6 +93,20 @@ end;
 procedure TKMSystem.SetCursor(Value: TKMCursorImageType);
 begin
   if SKIP_LOADING_CURSOR then Exit;
+
+  {$IFDEF DARWIN}
+  // Custom cursors are not created on macOS (MakeCursors is a no-op there because
+  // CreateIconIndirect is unavailable), so the Screen.Cursors[] slots for these
+  // positive indices are unregistered. Assigning Screen.Cursor to such an index
+  // makes the LCL Cocoa widgetset dereference a nil TCocoaCursor when the window
+  // becomes key (TCocoaWindow.DoWindowDidBecomeKey -> TCursorHelper.SetCursorOnActive
+  // -> SetScreenCursor -> TCocoaCursor.SetCursor), causing an access violation on
+  // the very first window focus. Track the value but leave Screen.Cursor at crDefault
+  // so the safe default-cursor path is used.
+  gMacCursor := Value;
+  Exit;
+  {$ENDIF}
+
   Screen.Cursor := Ord(Value) + CURSOR_CNT_OFFSET;
 end;
 
@@ -101,6 +131,13 @@ var
   rxData: PRXData;
 begin
   if SKIP_RENDER then Exit;
+
+  {$IFDEF DARWIN}
+  // Custom cursor creation via CreateIconIndirect is not supported on macOS Cocoa.
+  // The game will use the default system cursor instead.
+  gLog.AddTime('MakeCursors: skipped on macOS (CreateIconIndirect not supported)');
+  Exit;
+  {$ENDIF}
 
   rxData := @aSprites.RXData; // Store pointer to record instead of duplicating it
 

@@ -10,13 +10,14 @@ uses
   {$IFDEF USE_VIRTUAL_TREEVIEW}VirtualTrees, {$ENDIF}
 
   {$IFDEF USE_HASH}
-  System.Generics.Collections, System.Generics.Defaults, System.Hash,
+  {$IFDEF WDC}System.Generics.Collections, System.Generics.Defaults, System.Hash,{$ENDIF}
+  {$IFDEF FPC}Generics.Collections, Generics.Defaults,{$ENDIF}
   {$ENDIF}
-  System.Math,
+  {$IFDEF WDC}System.Math,{$ELSE}Math,{$ENDIF}
   KM_Units, KM_Houses,
   KM_HandEntity, KM_HandTypes,
   KM_CommonClasses, KM_Defaults, KM_Points,
-  BinaryHeapGen,
+  {$IFDEF WDC}BinaryHeapGen,{$ENDIF}
   KM_ResTypes;
 
 
@@ -116,6 +117,17 @@ type
   end;
 
   //Custom key comparator. Probably TDictionary can handle it himself, but lets try our custom comparator
+  {$IFDEF FPC}
+  TKMDeliveryRouteBidKeyEqualityComparer = class(TEqualityComparer<TKMDeliveryRouteBidKey>)
+    function Equals(constref Left, Right: TKMDeliveryRouteBidKey): Boolean; override;
+    function GetHashCode(constref Value: TKMDeliveryRouteBidKey): Cardinal; override;
+  end;
+
+  //Comparer just to make some order by keys
+  TKMDeliveryRouteBidKeyComparer = class(TComparer<TKMDeliveryRouteBidKey>)
+    function Compare(constref Left, Right: TKMDeliveryRouteBidKey): Integer; override;
+  end;
+  {$ELSE}
   TKMDeliveryRouteBidKeyEqualityComparer = class(TEqualityComparer<TKMDeliveryRouteBidKey>)
     function Equals(const Left, Right: TKMDeliveryRouteBidKey): Boolean; override;
     function GetHashCode(const Value: TKMDeliveryRouteBidKey): Integer; override;
@@ -125,6 +137,7 @@ type
   TKMDeliveryRouteBidKeyComparer = class(TComparer<TKMDeliveryRouteBidKey>)
     function Compare(const Left, Right: TKMDeliveryRouteBidKey): Integer; override;
   end;
+  {$ENDIF}
 
   TKMDeliveryRouteBid = record
     Value: Single;
@@ -141,6 +154,7 @@ type
     procedure Add(const aKey: TKMDeliveryRouteBidKey; const aValue: Single; const aRouteStep: TKMDeliveryRouteStep); reintroduce; overload;
 //    procedure Add(const aKey: TKMDeliveryBidKey; const aBid: TKMDeliveryBid); reintroduce; overload;
   end;
+  {$ENDIF}
 
   TKMDeliveryCalcKind = (dckFast, dckAccurate);
 
@@ -179,6 +193,27 @@ type
 
   TKMDeliveryBidCalcEventType = (bceBid, bceBidBasic, bceSerfBid);
 
+  {$IFDEF FPC}
+  TKMDeliveryBidComparator = function(A, B: TKMDeliveryBid): Boolean of object;
+
+  // Non-generic binary heap for FPC (avoids FPC 3.2.2 generics internal error)
+  TKMDeliveryBidHeap = class
+  private
+    fCount: Integer;
+    fItems: array of TKMDeliveryBid;
+    fCmp: TKMDeliveryBidComparator;
+    procedure _siftdown(startpos, pos: Integer);
+    procedure _siftup(pos: Integer);
+  public
+    constructor Create(aSize: Cardinal; aCmp: TKMDeliveryBidComparator);
+    destructor Destroy; override;
+    property Count: Integer read fCount;
+    procedure EnlargeTo(aSize: Cardinal);
+    procedure Clear;
+    function IsEmpty: Boolean;
+    function Pop: TKMDeliveryBid;
+    procedure Push(aItem: TKMDeliveryBid);
+  end;
   {$ENDIF}
 
   TKMDeliveryRouteEvaluator = class
@@ -235,8 +270,8 @@ type
 
     fRouteEvaluator: TKMDeliveryRouteEvaluator;
 
-    fBestBidCandidates: TObjectBinaryHeap<TKMDeliveryBid>;
-    fBestBids: TObjectBinaryHeap<TKMDeliveryBid>;
+    fBestBidCandidates: {$IFDEF WDC}TObjectBinaryHeap<TKMDeliveryBid>{$ELSE}TKMDeliveryBidHeap{$ENDIF};
+    fBestBids: {$IFDEF WDC}TObjectBinaryHeap<TKMDeliveryBid>{$ELSE}TKMDeliveryBidHeap{$ENDIF};
 
     function AllowFormLogisticsChange: Boolean;
     {$IFDEF USE_VIRTUAL_TREEVIEW}
@@ -362,7 +397,7 @@ const
 
 implementation
 uses
-  System.Classes, System.SysUtils, System.TypInfo,
+  {$IFDEF WDC}System.Classes, System.SysUtils, System.TypInfo,{$ELSE}Classes, SysUtils, TypInfo,{$ENDIF}
   KM_Entity,
   KM_Terrain,
   KM_FormLogistics, KM_UnitTaskDelivery,
@@ -621,8 +656,8 @@ begin
   fOwner := aHandIndex;
 
   fRouteEvaluator := TKMDeliveryRouteEvaluator.Create;
-  fBestBidCandidates := TObjectBinaryHeap<TKMDeliveryBid>.Create(INIT_BIDS_HEAP_SIZE, CompareBids);
-  fBestBids := TObjectBinaryHeap<TKMDeliveryBid>.Create(BIDS_TO_COMPARE, CompareBids);
+  fBestBidCandidates := {$IFDEF WDC}TObjectBinaryHeap<TKMDeliveryBid>{$ELSE}TKMDeliveryBidHeap{$ENDIF}.Create(INIT_BIDS_HEAP_SIZE, CompareBids);
+  fBestBids := {$IFDEF WDC}TObjectBinaryHeap<TKMDeliveryBid>{$ELSE}TKMDeliveryBidHeap{$ENDIF}.Create(BIDS_TO_COMPARE, CompareBids);
 
   if AllowFormLogisticsChange then
     FormLogistics.Clear;
@@ -2601,7 +2636,7 @@ end;
 
 {$IFDEF USE_HASH}
 { TKMDeliveryRouteBidKeyEqualityComparer }
-function TKMDeliveryRouteBidKeyEqualityComparer.Equals(const Left, Right: TKMDeliveryRouteBidKey): Boolean;
+function TKMDeliveryRouteBidKeyEqualityComparer.Equals({$IFDEF FPC}constref Left, Right{$ELSE}const Left, Right{$ENDIF}: TKMDeliveryRouteBidKey): Boolean;
 begin
   // path keys are equal if they have same ends
   Result := ((Left.FromP = Right.FromP) and (Left.ToP = Right.ToP))
@@ -2630,14 +2665,14 @@ end;
 // Hash function should be match to equals function, so
 // if A equals B, then Hash(A) = Hash(B)
 // For our task we need that From / To end could be swapped, since we don't care where is the starting point of the path
-function TKMDeliveryRouteBidKeyEqualityComparer.GetHashCode(const Value: TKMDeliveryRouteBidKey): Integer;
+function TKMDeliveryRouteBidKeyEqualityComparer.GetHashCode({$IFDEF FPC}constref{$ELSE}const{$ENDIF} Value: TKMDeliveryRouteBidKey): {$IFDEF FPC}Cardinal{$ELSE}Integer{$ENDIF};
 begin
   Result := Value.GetHashCode;
 end;
 
 
 //Compare keys to make some order to make save consistent. We don't care about the order, it just should be consistent
-function TKMDeliveryRouteBidKeyComparer.Compare(const Left, Right: TKMDeliveryRouteBidKey): Integer;
+function TKMDeliveryRouteBidKeyComparer.Compare({$IFDEF FPC}constref Left, Right{$ELSE}const Left, Right{$ENDIF}: TKMDeliveryRouteBidKey): Integer;
 begin
   if Left.Pass = Right.Pass then
   begin
@@ -2709,6 +2744,7 @@ end;
 {$ENDIF}
 
 
+{$IFDEF USE_HASH}
 { TKMDeliveryRouteBidKey }
 function TKMDeliveryRouteBidKey.GetHashCode: Integer;
 var
@@ -2721,7 +2757,11 @@ begin
   Int64Rec(total).Words[3] := (Byte(Pass) shl 8)          // (0..13 actually)
                               or Abs(FromP.Y - ToP.Y); // (0..256)
   //GetHashValue(Integer/Cardinal) is even faster, but we can't fit our 34 bits there
+  {$IFDEF WDC}
   Result := THashBobJenkins.GetHashValue(total, SizeOf(Int64), 0);
+  {$ELSE}
+  Result := LongInt(total) xor LongInt(total shr 32);
+  {$ENDIF}
 end;
 
 
@@ -2740,6 +2780,7 @@ function TKMDeliveryRouteBid.IsExpired(aTick: Integer): Boolean;
 begin
   Result := aTick - CreatedAt > GetTTL;
 end;
+{$ENDIF}
 
 
 { TKMDeliveryRouteEvaluator }
@@ -2747,7 +2788,9 @@ constructor TKMDeliveryRouteEvaluator.Create;
 begin
   inherited;
 
+  {$IFDEF USE_HASH}
   fUpdatesCnt := 0;
+  {$ENDIF}
 
   {$IFDEF USE_HASH}
   if CACHE_DELIVERY_BIDS then
@@ -2786,6 +2829,7 @@ begin
   distance := EvaluateFast(aFromPos, aToPos);
   Result := True;
 
+  {$IFDEF USE_HASH}
   if DELIVERY_BID_CALC_USE_PATHFINDING and (distance < BID_CALC_MAX_DIST_FOR_PATHF) then
   begin
     fNodeList.Clear;
@@ -2798,6 +2842,7 @@ begin
       Result := False;
   end
   else
+  {$ENDIF}
     //Basic Bid is length of route
     aRoutCost := distance;
 
@@ -2814,9 +2859,11 @@ end;
 
 function TKMDeliveryRouteEvaluator.TryEvaluateAccurate(const aFromPos, aToPos: TKMPoint; aPass: TKMTerrainPassability;
                                                        out aRouteCost: Single; aRouteStep: TKMDeliveryRouteStep): Boolean;
+{$IFDEF USE_HASH}
 var
   bidKey: TKMDeliveryRouteBidKey;
   bid: TKMDeliveryRouteBid;
+{$ENDIF}
 begin
   {$IFDEF USE_HASH}
   if CACHE_DELIVERY_BIDS then
@@ -2907,7 +2954,9 @@ begin
     comparer := TKMDeliveryRouteBidKeyComparer.Create;
     try
       cacheKeyArray := fBidsRoutesCache.Keys.ToArray;
+      {$IFDEF WDC}
       TArray.Sort<TKMDeliveryRouteBidKey>(cacheKeyArray, comparer);
+      {$ENDIF}
 
       for key in cacheKeyArray do
       begin
@@ -3124,6 +3173,113 @@ begin
   if Loc_Unit <> nil then
     Result := Loc_Unit;
 end;
+
+
+{$IFDEF FPC}
+{ TKMDeliveryBidHeap }
+constructor TKMDeliveryBidHeap.Create(aSize: Cardinal; aCmp: TKMDeliveryBidComparator);
+begin
+  inherited Create;
+  fCmp := aCmp;
+  SetLength(fItems, aSize);
+end;
+
+destructor TKMDeliveryBidHeap.Destroy;
+begin
+  Clear;
+  inherited;
+end;
+
+procedure TKMDeliveryBidHeap.EnlargeTo(aSize: Cardinal);
+begin
+  if aSize > Cardinal(Length(fItems)) then
+    SetLength(fItems, aSize);
+end;
+
+procedure TKMDeliveryBidHeap.Clear;
+var
+  I: Integer;
+begin
+  for I := fCount - 1 downto 0 do
+    FreeAndNil(fItems[I]);
+  fCount := 0;
+end;
+
+function TKMDeliveryBidHeap.IsEmpty: Boolean;
+begin
+  Result := (fCount = 0);
+end;
+
+procedure TKMDeliveryBidHeap.Push(aItem: TKMDeliveryBid);
+begin
+  if Length(fItems) <= fCount then
+    SetLength(fItems, Round(fCount * 1.618));
+  fItems[fCount] := aItem;
+  Inc(fCount);
+  _siftdown(0, fCount - 1);
+end;
+
+function TKMDeliveryBidHeap.Pop: TKMDeliveryBid;
+var
+  lastelt, returnitem: TKMDeliveryBid;
+begin
+  if fCount = 0 then Exit(nil);
+  lastelt := fItems[fCount - 1];
+  Dec(fCount);
+  if (fCount <> 0) then
+  begin
+    returnitem := fItems[0];
+    fItems[0] := lastelt;
+    _siftup(0);
+  end
+  else
+    returnitem := lastelt;
+  Result := returnitem;
+end;
+
+procedure TKMDeliveryBidHeap._siftdown(startpos, pos: Integer);
+var
+  newitem, parent: TKMDeliveryBid;
+  parentpos: Integer;
+begin
+  newitem := fItems[pos];
+  while (pos > startpos) do
+  begin
+    parentpos := (pos - 1) shr 1;
+    parent := fItems[parentpos];
+    if fCmp(newitem, parent) then
+    begin
+      fItems[pos] := parent;
+      pos := parentpos;
+      Continue;
+    end;
+    Break;
+  end;
+  fItems[pos] := newitem;
+end;
+
+procedure TKMDeliveryBidHeap._siftup(pos: Integer);
+var
+  childpos, endpos, rightpos, startpos: Integer;
+  newitem: TKMDeliveryBid;
+begin
+  endpos := fCount;
+  startpos := pos;
+  newitem := fItems[pos];
+  childpos := 2 * pos + 1;
+  while (childpos < endpos) do
+  begin
+    rightpos := childpos + 1;
+    if (rightpos < endpos) and (not fCmp(fItems[childpos], fItems[rightpos])) then
+      childpos := rightpos;
+    fItems[pos] := fItems[childpos];
+    pos := childpos;
+    childpos := 2 * pos + 1;
+  end;
+  fItems[pos] := newitem;
+  _siftdown(startpos, pos);
+end;
+{$ENDIF}
 
 
 end.

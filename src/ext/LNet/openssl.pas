@@ -80,11 +80,12 @@ var
   
   { ADD NEW ONES WHEN THEY APPEAR!
     Always make .so/dylib first, then versions, in descending order!
-    Add "." .before the version, first is always just "" }
-  DLLVersions: array[1..16] of string = ('', '.1.0.6', '.1.0.5', '.1.0.4', '.1.0.3',
+    Note: empty '' version is intentionally last — on macOS 15+ /usr/lib/libssl.dylib
+    is a stub that calls abort(), so versioned names must be tried first. }
+  DLLVersions: array[1..18] of string = ('.3', '.1.1', '.1.0.6', '.1.0.5', '.1.0.4', '.1.0.3',
                                         '.1.0.2', '.1.0.1','.1.0.0','.0.9.8',
                                         '.0.9.7', '.0.9.6', '.0.9.5', '.0.9.4',
-                                        '.0.9.3', '.0.9.2', '.0.9.1');
+                                        '.0.9.3', '.0.9.2', '.0.9.1', '');
 
   {$ENDIF}
 
@@ -1267,14 +1268,27 @@ var
   i: cInt;
 begin
   Result := NilHandle;
-  
+
+  {$IFDEF DARWIN}
+  // On macOS 15+, /usr/lib/libssl.dylib is a stub that calls abort() at load time.
+  // Try absolute Homebrew paths first so the app bundle finds OpenSSL without
+  // needing DYLD_LIBRARY_PATH (which is stripped from app bundles).
+  Result := LoadLibrary('/opt/homebrew/opt/openssl@3/lib/' + Value + '.3.dylib');
+  if Result <> NilHandle then Exit;
+  Result := LoadLibrary('/usr/local/opt/openssl@3/lib/' + Value + '.3.dylib'); // Intel Homebrew
+  if Result <> NilHandle then Exit;
+  Result := LoadLibrary('/opt/homebrew/opt/openssl@1.1/lib/' + Value + '.1.1.dylib');
+  if Result <> NilHandle then Exit;
+  {$ENDIF}
+
   for i := Low(DLLVersions) to High(DLLVersions) do begin
     {$IFDEF DARWIN}
+    if DLLVersions[i] = '' then Continue; // Skip unversioned — /usr/lib/libssl.dylib aborts on macOS 15+
     Result := LoadLibrary(Value + DLLVersions[i] + '.dylib');
     {$ELSE}
     Result := LoadLibrary(Value + '.so' + DLLVersions[i]);
     {$ENDIF}
-    
+
     if Result <> NilHandle then
       Break;
   end;

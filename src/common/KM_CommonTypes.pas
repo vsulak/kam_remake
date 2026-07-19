@@ -67,6 +67,7 @@ type
 
   {$IFDEF FPC}
   TProc = procedure;
+  TStringProc = procedure(const s: string) of object;
   {$ENDIF}
 
   TKMAnimLoop = packed record

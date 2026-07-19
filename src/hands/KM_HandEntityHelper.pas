@@ -11,53 +11,45 @@ type
     function AsGroup: TKMUnitGroup;
     function AsHouse: TKMHouse;
   end;
-  
-  
+
+
 implementation
 
 
 { TKMHandEntityHelper }
 function TKMHandEntityHelper.AsGroup: TKMUnitGroup;
 begin
-  if (Self = nil)
-  or not IsGroup
-  or not (Self is TKMUnitGroup) then
-    Exit(nil);
-
-  Result := TKMUnitGroup(Self);
+  if Self is TKMUnitGroup then
+    Result := TKMUnitGroup(Self)
+  else
+    Result := nil;
 end;
 
 
 function TKMHandEntityHelper.AsHouse: TKMHouse;
 begin
-  if (Self = nil)
-  or not IsHouse
-  or not (Self is TKMHouse) then
-    Exit(nil);
-
-  Result := TKMHouse(Self);
+  if Self is TKMHouse then
+    Result := TKMHouse(Self)
+  else
+    Result := nil;
 end;
 
 
 function TKMHandEntityHelper.AsUnit: TKMUnit;
 begin
-  if (Self = nil)
-  or not IsUnit
-  or not (Self is TKMUnit) then
-    Exit(nil);
-
-  Result := TKMUnit(Self);
+  if Self is TKMUnit then
+    Result := TKMUnit(Self)
+  else
+    Result := nil;
 end;
 
 
 function TKMHandEntityHelper.AsUnitWarrior: TKMUnitWarrior;
 begin
-  if (Self = nil)
-  or not IsUnit
-  or not (Self is TKMUnitWarrior) then
-    Exit(nil);
-
-  Result := TKMUnitWarrior(Self);
+  if Self is TKMUnitWarrior then
+    Result := TKMUnitWarrior(Self)
+  else
+    Result := nil;
 end;
 
 

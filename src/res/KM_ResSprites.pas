@@ -91,7 +91,7 @@ type
                                           aOnCheckTerminated: TBooleanFuncSimple = nil);
 
     procedure LoadFromRXXFile(const aFileName: string; aStartingIndex: Integer = 1);
-    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+    procedure OverloadRXDataFromFolder(const aFolder: string; aOnProgress: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF}; aSoftenShadows: Boolean = True);
 
     function GetSoftenShadowType(aID: Integer): TKMSpriteSoftening;
 
@@ -1020,7 +1020,7 @@ end;
 // Parse all valid files in Sprites folder:
 // - append or replace original sprites with new ones
 // - exclude original sprites if necessary as well
-procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: TProc<string>; aSoftenShadows: Boolean = True);
+procedure TKMSpritePack.OverloadRXDataFromFolder(const aFolder: string; aOnProgress: {$IFDEF FPC}TStringProc{$ELSE}TProc<string>{$ENDIF}; aSoftenShadows: Boolean = True);
   {$IFDEF WDC}
   // Append all PNGs including the subfolders
   // Pattern is X_nnnn.png, where nnnn is dynamic (1..n chars) for modders convenience
@@ -1380,12 +1380,11 @@ var
   atlasData: TKMCardinalArray;
   texFilter: TKMFilterType;
 begin
-//  gLog.AddTime('Length(aSpriteInfo) = ' + IntToStr(Length(aSpriteInfo)));
+  gLog.AddTime('[DBG] PrepareAtlases mode=%d len=%d', [Ord(aMode), Length(aSpriteInfo)]);
   //Prepare atlases
   for I := 0 to Length(aSpriteInfo) - 1 do
   begin
-//    if I * 2 + 1 >= I - 1 then
-//      gLog.AddTime('I = ' + IntToStr(I));
+    gLog.AddTime('[DBG] Atlas I=%d W=%d H=%d sprites=%d', [I, aSpriteInfo[I].Width, aSpriteInfo[I].Height, Length(aSpriteInfo[I].Sprites)]);
     Assert(MakePOT(aSpriteInfo[I].Width) = aSpriteInfo[I].Width);
     Assert(MakePOT(aSpriteInfo[I].Height) = aSpriteInfo[I].Height);
     SetLength(atlasData, 0);
@@ -1493,6 +1492,7 @@ var
 begin
   aBaseRAM := 0;
   aColorRAM := 0;
+  gLog.AddTime('[DBG] MakeGFX_BinPacking start RT=%d IDList.Count=%d', [Ord(fRT), aIDList.Count]);
   //Prepare base atlases
   SetLength(spriteSizes, aIDList.Count);// fRXData.Count - aStartingIndex + 1);
   K := 0;
@@ -1508,6 +1508,7 @@ begin
     end;
   end;
   SetLength(spriteSizes, K);
+  gLog.AddTime('[DBG] MakeGFX_BinPacking K=%d', [K]);
 
   //For RX with only 1 texture we can set small size, as 512, it will be auto enlarged to POT(image size)
   if K = 1 then
@@ -1521,14 +1522,17 @@ begin
   end else
     atlasSize := GetMaxAtlasSize;
 
+  gLog.AddTime('[DBG] MakeGFX_BinPacking atlasSize=%d', [atlasSize]);
   SetLength(spriteInfo, 0);
   BinPack(spriteSizes, atlasSize, fPad, spriteInfo);
+  gLog.AddTime('[DBG] BinPack base done. spriteInfo len=%d', [Length(spriteInfo)]);
 
   if CheckTerminated then Exit; //Our thread could be terminated and asked to stop. Exit immediately then
 
   SetLength(fAtlases[saBase], Length(spriteInfo));
 
   PrepareAtlases(spriteInfo, saBase, aTexType, aBaseRAM, aColorRAM, aTexCount, aFillGFXData, aOnCheckTerminated);
+  gLog.AddTime('[DBG] PrepareAtlases saBase done');
 
   if CheckTerminated then Exit;
 
@@ -1547,12 +1551,15 @@ begin
     end;
   end;
   SetLength(spriteSizes, K);
+  gLog.AddTime('[DBG] mask sprites K=%d', [K]);
 
   SetLength(spriteInfo, 0);
   BinPack(spriteSizes, atlasSize, fPad, spriteInfo);
+  gLog.AddTime('[DBG] BinPack mask done. spriteInfo len=%d', [Length(spriteInfo)]);
   if CheckTerminated then Exit;
   SetLength(fAtlases[saMask], Length(spriteInfo));
   PrepareAtlases(spriteInfo, saMask, tfAlpha8, aBaseRAM, aColorRAM, aTexCount, aFillGFXData, aOnCheckTerminated);
+  gLog.AddTime('[DBG] PrepareAtlases saMask done');
 end;
 {$ENDIF}
 
@@ -1578,9 +1585,11 @@ var
   SAT: TKMSpriteAtlasType;
   texID: Cardinal;
   texFilter: TKMFilterType;
+  rxaSuffix: string;
 {$ENDIF}
 begin
   {$IFNDEF NO_OGL}
+  if aIsRXA then rxaSuffix := '_rxa_' else rxaSuffix := '_';
   for SAT := Low(fAtlases) to High(fAtlases) do
     for I := Low(fAtlases[SAT]) to High(fAtlases[SAT]) do
     begin
@@ -1597,7 +1606,7 @@ begin
         if ((not aIsRXA and EXPORT_SPRITE_ATLASES) or (aIsRXA and EXPORT_SPRITE_ATLASES_RXA))
         and (fRT in EXPORT_SPRITE_ATLASES_LIST) then
           SaveToPng(Container.Width, Container.Height, Data,
-            ExeDir + 'Export\GenTextures\' + RX_INFO[fRT].FileName + IfThen(aIsRXA, '_rxa_', '_') + SPRITE_TYPE_EXPORT_NAME[SAT] + IntToStr(texID) + '.png');
+            ExeDir + 'Export\GenTextures\' + RX_INFO[fRT].FileName + rxaSuffix + SPRITE_TYPE_EXPORT_NAME[SAT] + IntToStr(texID) + '.png');
       end;
     end;
   {$ENDIF}
@@ -1835,6 +1844,14 @@ begin
       //              Rotate(K, L, M, P, Q, aSprites.fRXData.Size[TerrainId].X - 1);
                     straightPx := L * aSprites.fRXData.Size[terrainId].X  + M;
       //              RotatePixel := StraightPixel; //P * aSprites.fRXData.Size[TerrainId].X  + Q;
+
+                    // Guard against nil/empty mask pixel data (can happen with incomplete sprite packs)
+                    if (Length(aSprites.fRXData.RGBA[maskId]) = 0)
+                      or (straightPx >= Length(aSprites.fRXData.RGBA[maskId])) then
+                    begin
+                      aSprites.fRXData.RGBA[texId, straightPx] := aSprites.fRXData.RGBA[terrainId, straightPx];
+                      Continue;
+                    end;
 
                     case TILE_MASK_KIND_USAGE[MK] of
                       mkuPixel: maskCol := ($FFFFFF or (aSprites.fRXData.RGBA[maskId, straightPx] shl 24));

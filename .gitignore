@@ -46,7 +46,7 @@ bugreport.txt
 /data/Sprites
 /data/defines/houses.dat
 /data/defines/unit.dat
-/data/gfx/video 
+/data/gfx/video
 /data/gfx/*.bbm
 /data/gfx/*.lbm
 /data/gfx/*.dat
@@ -103,3 +103,7 @@ Modding graphics/*.txt
 KaM_Remake_exe.aqt
 
 SavesCMP/
+.claude/
+*.res
+*.fpc
+KaM_Remake

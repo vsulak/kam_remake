@@ -5,6 +5,9 @@ uses
   Classes, SysUtils, Generics.Collections;
 
 type
+  {$IFDEF FPC}
+  TProc = procedure;
+  {$ENDIF}
   // FPC 3.2.2 still has problems with TProc and TProc<>
   // Hence the simplest solution is to excelude this utility unit from DedicatedServer projects
   {$IFDEF WDC}
@@ -17,8 +20,6 @@ type
   {$ENDIF}
 
   TKMWorkerThread = class(TThread)
-  // FPC 3.2.2 still has problems with TProc and TProc<>
-  // Hence the simplest solution is to excelude this utility unit from DedicatedServer projects
   {$IFDEF WDC}
   private
     fWorkerThreadName: string;
@@ -42,6 +43,15 @@ type
     procedure QueueWorkAndLog(aProc: TProc; aTaskName: string = '');
 
     procedure WaitForAllWorkToComplete;
+  {$ELSE}
+  public
+    fSynchronousExceptionMode: Boolean;
+    constructor Create(const aThreadName: string = '');
+    procedure Execute; override;
+    procedure QueueWork(aProc: TProc; aTaskName: string = '');
+    procedure QueueWorkAndCallback(aProc: TProc; aOnDone: TProc = nil; aTaskName: string = '');
+    procedure QueueWorkAndLog(aProc: TProc; aTaskName: string = '');
+    procedure WaitForAllWorkToComplete;
   {$ENDIF}
   end;
 
@@ -59,6 +69,14 @@ type
     destructor Destroy; override;
 
     property Worker: TKMWorkerThread read GetWorkerThread write fWorkerThread;
+  {$ELSE}
+  private
+    fWorkerThread: TKMWorkerThread;
+  public
+    constructor Create(const aThreadName: String);
+    destructor Destroy; override;
+
+    property Worker: TKMWorkerThread read fWorkerThread;
   {$ENDIF}
   end;
 
@@ -293,6 +311,56 @@ begin
   end;
 
   Result := fWorkerThread;
+end;
+{$ENDIF}
+
+
+{$IFDEF FPC}
+constructor TKMWorkerThread.Create(const aThreadName: string = '');
+begin
+  inherited Create(True); // suspended
+end;
+
+procedure TKMWorkerThread.Execute;
+begin
+  // No-op for FPC stub
+end;
+
+procedure TKMWorkerThread.QueueWork(aProc: TProc; aTaskName: string = '');
+begin
+  if Assigned(aProc) then
+    aProc();
+end;
+
+procedure TKMWorkerThread.QueueWorkAndCallback(aProc: TProc; aOnDone: TProc = nil; aTaskName: string = '');
+begin
+  if Assigned(aProc) then
+    aProc();
+  if Assigned(aOnDone) then
+    aOnDone();
+end;
+
+procedure TKMWorkerThread.QueueWorkAndLog(aProc: TProc; aTaskName: string = '');
+begin
+  if Assigned(aProc) then
+    aProc();
+end;
+
+procedure TKMWorkerThread.WaitForAllWorkToComplete;
+begin
+  // No-op: FPC runs work synchronously
+end;
+
+constructor TKMWorkerThreadHolder.Create(const aThreadName: String);
+begin
+  inherited Create;
+  fWorkerThread := TKMWorkerThread.Create(aThreadName);
+end;
+
+destructor TKMWorkerThreadHolder.Destroy;
+begin
+  FreeAndNil(fWorkerThread);
+  inherited;
 end;
 {$ENDIF}
 

@@ -3,7 +3,7 @@
 unit BinaryHeapGen;
 {$I KaM_Remake.inc}
 interface
-uses Generics.Collections;
+{$IFDEF WDC}uses Generics.Collections;{$ENDIF}
 
 type
   TComparator<T: class> = function(A, B: T) : Boolean of object;

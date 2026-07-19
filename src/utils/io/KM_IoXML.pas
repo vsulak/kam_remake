@@ -94,6 +94,7 @@ type
     function AddChild(const Name: String): TKMXmlNode; {$IFDEF WDC}reintroduce;{$ENDIF}
     function FindNode(const Name: String): TKMXmlNode; {$IFDEF FPC}reintroduce;{$ENDIF}
     function AddOrFindChild(const aChildNodeName: string): TKMXmlNode;
+    procedure Clear;
     function HasAttribute(const AttrName: String): Boolean; {$IFDEF WDC}reintroduce;{$ENDIF}
     function HasChild(const Name: String): Boolean; {$IFDEF WDC}reintroduce;{$ENDIF}
     property Attributes[const AttrName: String]: TKMSimpleVariant read GetAttrib write SetAttrib;
@@ -190,12 +191,17 @@ begin
       fRoot := TKMXmlNode(fDocument.ChildNodes.Add(aRoot));
   {$ENDIF}
   {$IFDEF FPC}
-    fRoot := TKMXmlNode(fDocument.DocumentElement.FindNode(aRoot));
+    // DocumentElement is the root element of the loaded XML (or nil if doc is empty)
+    if (fDocument.DocumentElement <> nil) and
+       (string(fDocument.DocumentElement.NodeName) = aRoot) then
+      fRoot := TKMXmlNode(fDocument.DocumentElement)
+    else
+      fRoot := nil;
 
     // Create root if it's missing, so that XML could be processed and default parameters created
     if fRoot = nil then
     begin
-      fRoot := TKMXmlNode(fDocument.CreateElement(aRoot));
+      fRoot := TKMXmlNode(fDocument.CreateElement(DOMString(aRoot)));
       fDocument.AppendChild(fRoot);
     end;
   {$ENDIF}
@@ -243,6 +249,10 @@ begin
   {$IFDEF WDC}
   Result := TKMXmlNode(inherited AddChild(Name));
   {$ENDIF}
+  {$IFDEF FPC}
+  Result := TKMXmlNode(OwnerDocument.CreateElement(DOMString(Name)));
+  AppendChild(Result);
+  {$ENDIF}
 end;
 
 
@@ -250,6 +260,9 @@ function TKMXmlNode.FindNode(const Name: String): TKMXmlNode;
 begin
   {$IFDEF WDC}
   Result := TKMXmlNode(ChildNodes.Find(Name));
+  {$ENDIF}
+  {$IFDEF FPC}
+  Result := TKMXmlNode(inherited FindNode(DOMString(Name)));
   {$ENDIF}
 end;
 
@@ -263,11 +276,27 @@ begin
 end;
 
 
+procedure TKMXmlNode.Clear;
+{$IFDEF FPC}
+begin
+  // Remove all child nodes (attributes stay, which is fine for settings)
+  while HasChildNodes do
+    RemoveChild(FirstChild).Free;
+{$ELSE}
+begin
+  inherited Clear;
+{$ENDIF}
+end;
+
+
 
 function TKMXmlNode.HasAttribute(const AttrName: String): Boolean;
 begin
   {$IFDEF WDC}
   Result := inherited HasAttribute(AttrName);
+  {$ENDIF}
+  {$IFDEF FPC}
+  Result := inherited HasAttribute(DOMString(AttrName));
   {$ENDIF}
 end;
 
@@ -276,6 +305,9 @@ function TKMXmlNode.HasChild(const Name: String): Boolean;
 begin
   {$IFDEF WDC}
   Result := inherited HasChild(Name);
+  {$ENDIF}
+  {$IFDEF FPC}
+  Result := inherited FindNode(DOMString(Name)) <> nil;
   {$ENDIF}
 end;
 
@@ -290,6 +322,9 @@ begin
   sv := inherited GetAttr(AttrName);
   Result.fValue := sv.AsString;
   {$ENDIF}
+  {$IFDEF FPC}
+  Result.fValue := string(inherited GetAttribute(DOMString(AttrName)));
+  {$ENDIF}
 end;
 
 
@@ -297,6 +332,9 @@ procedure TKMXmlNode.SetAttrib(const AttrName: String; const AttrValue: TKMSimpl
 begin
   {$IFDEF WDC}
   inherited SetAttr(AttrName, AttrValue.ToSimpleVariant);
+  {$ENDIF}
+  {$IFDEF FPC}
+  inherited SetAttribute(DOMString(AttrName), DOMString(AttrValue.AsString));
   {$ENDIF}
 end;
 
@@ -306,6 +344,9 @@ begin
   {$IFDEF WDC}
   Result := ChildNodes.Count;
   {$ENDIF}
+  {$IFDEF FPC}
+  Result := ChildNodes.Length;
+  {$ENDIF}
 end;
 
 
@@ -313,6 +354,9 @@ function TKMXmlNode.GetChild(const aIndex: Integer): TKMXmlNode;
 begin
   {$IFDEF WDC}
   Result := TKMXmlNode(ChildNodes[aIndex]);
+  {$ENDIF}
+  {$IFDEF FPC}
+  Result := TKMXmlNode(ChildNodes.Item[aIndex]);
   {$ENDIF}
 end;
 

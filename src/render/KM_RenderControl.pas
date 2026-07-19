@@ -2,7 +2,7 @@ unit KM_RenderControl;
 {$I KaM_Remake.inc}
 interface
 uses
-  Classes, Types,
+  Classes, SysUtils, Types,
   ExtCtrls, Forms,
   KromOGLUtils
   {$IFDEF MSWindows} , Windows, dglOpenGL  {$ENDIF}
@@ -121,7 +121,8 @@ begin
   {$ENDIF}
   {$IFDEF Unix}
     MakeCurrent;
-    InitOpenGL;
+    if not InitOpenGL then
+      raise Exception.Create('Failed to initialize OpenGL. Could not load library.');
     ReadExtensions;
     ReadImplementationProperties;
   {$ENDIF}
