@@ -1853,6 +1853,38 @@ begin
     ShowInDefaultWindow
   else
     ShowInCustomWindow;
+  {$ELSE}
+  // Non-Windows (macOS Cocoa / Linux GTK): the Win32 window-placement helpers
+  // (ShowInCustomWindow/ShowInDefaultWindow) are unavailable, but plain LCL
+  // client sizing works. Without this the form keeps its .lfm design size
+  // (529x933) and game content laid out for MENU_DESIGN_X (1024) is clipped
+  // after leaving the (centered, so still readable) main menu.
+  BorderStyle := bsSizeable;
+  WindowState := wsNormal;
+  Position    := gMainSettings.WindowParams.Position;
+  // Clamp to the design minimum so a stale/small saved size can't clip content
+  ClientWidth  := Max(gMainSettings.WindowParams.Width,  MENU_DESIGN_X);
+  ClientHeight := Max(gMainSettings.WindowParams.Height, MENU_DESIGN_Y);
+
+  if gMainSettings.WindowParams.NeedResetToDefaults then
+  begin
+    Position := poScreenCenter;
+    // Persist the applied defaults so they are saved back correctly
+    gMain.UpdateWindowParams(GetWindowParams);
+    gMainSettings.WindowParams.NeedResetToDefaults := False;
+  end;
+
+  //Make sure Panel fills the (now resized) client area. Setting ClientWidth
+  //above does not reliably re-flow the alClient child on Cocoa, so size it
+  //explicitly - otherwise the GL viewport stays at the old design width.
+  RenderArea.Align  := alClient;
+  RenderArea.Left   := 0;
+  RenderArea.Top    := 0;
+  RenderArea.Width  := ClientWidth;
+  RenderArea.Height := ClientHeight;
+
+  gLog.AddTime('Set window params to: ClientWidth = %d, ClientHeight = %d, RenderArea = %dx%d',
+               [ClientWidth, ClientHeight, RenderArea.Width, RenderArea.Height]);
   {$ENDIF}
 end;
 
